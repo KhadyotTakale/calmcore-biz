@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 const Home = () => {
   return (
     <div className="min-h-screen pb-28">
-      <div className="mx-auto max-w-lg space-y-6 p-6">
+      <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
         {/* Header */}
         <DashboardHeader />
 
@@ -20,7 +20,7 @@ const Home = () => {
           <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
             Quick Actions
           </h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:gap-6">
             <QuickLinkCard
               icon={Plus}
               label="Add Transaction"
@@ -61,7 +61,7 @@ const Home = () => {
           <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
             Create Documents
           </h2>
-          <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <ActionCard
               icon={FileText}
               title="Generate Estimate"

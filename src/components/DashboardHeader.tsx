@@ -19,7 +19,7 @@ export const DashboardHeader = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-white/85 to-white/80" />
       
       <div className="relative z-10">
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
             <motion.div
               whileHover={{ rotate: 360 }}

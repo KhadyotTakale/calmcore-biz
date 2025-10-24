@@ -14,7 +14,7 @@ export const BottomNav = () => {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe md:hidden">
       <div className="mx-auto max-w-lg px-4 pb-4">
         <motion.div
           initial={{ y: 100, opacity: 0 }}
