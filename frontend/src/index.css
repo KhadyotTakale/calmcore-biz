@@ -1,0 +1,223 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Brand Colors - Sophisticated & Calming */
+    --primary: 100 52% 63%; /* Sage Green #9CA986 */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 88 28% 70%; /* Lighter sage */
+
+    --secondary: 261 54% 74%; /* Soft Lavender #B4A7D6 */
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 12 100% 82%; /* Warm Peach #FFB4A2 */
+    --accent-foreground: 195 11% 19%;
+
+    --info: 185 83% 76%; /* Sky Blue #A8DADC */
+    --info-foreground: 195 11% 19%;
+
+    /* Success, Warning, Error */
+    --success: 165 43% 72%; /* Mint Fresh #98D8C8 */
+    --success-foreground: 195 11% 19%;
+
+    --warning: 45 86% 75%; /* Golden Hour #F6D186 */
+    --warning-foreground: 195 11% 19%;
+
+    --destructive: 339 77% 84%; /* Coral Pink #F7B5CA */
+    --destructive-foreground: 195 11% 19%;
+
+    /* Base Colors */
+    --background: 60 33% 98%; /* Cream White #FAF9F6 */
+    --foreground: 195 11% 19%; /* Charcoal #2D3436 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 195 11% 19%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 195 11% 19%;
+
+    --muted: 0 0% 96%; /* Soft Gray #F5F5F5 */
+    --muted-foreground: 0 0% 62%; /* Warm Gray #9E9E9E */
+
+    --border: 0 0% 91%;
+    --input: 0 0% 91%;
+    --ring: 88 22% 63%;
+
+    --radius: 1rem;
+
+    /* Custom Design Tokens */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(88, 22%, 63%) 0%,
+      hsl(165, 43%, 72%) 100%
+    );
+    --gradient-secondary: linear-gradient(
+      135deg,
+      hsl(261, 34%, 74%) 0%,
+      hsl(185, 43%, 76%) 100%
+    );
+    --gradient-accent: linear-gradient(
+      135deg,
+      hsl(12, 100%, 82%) 0%,
+      hsl(339, 77%, 84%) 100%
+    );
+    --gradient-background: linear-gradient(
+      135deg,
+      hsl(60, 33%, 98%) 0%,
+      hsl(0, 0%, 96%) 100%
+    );
+
+    /* Light mode shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16);
+
+    --shadow-primary: 0 8px 24px hsla(88, 22%, 63%, 0.25);
+    --shadow-secondary: 0 8px 24px hsla(261, 34%, 74%, 0.25);
+    --shadow-accent: 0 8px 24px hsla(12, 100%, 82%, 0.25);
+  }
+
+  .dark {
+    /* Even darker surface and background for maximum contrast */
+    --background: 195 15% 5%; /* near-black navy */
+    --foreground: 60 33% 98%; /* crisp white for text */
+
+    /* Surfaces - darker with slight color retention */
+    --card: 195 15% 7%;
+    --card-foreground: 60 33% 98%;
+
+    --popover: 195 15% 7%;
+    --popover-foreground: 60 33% 98%;
+
+    /* Brand colors: deeper and more saturated for dark mode */
+    --primary: 88 28% 35%; /* deep sage */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 261 40% 35%; /* deep purple */
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted / subtle surfaces - closer to background */
+    --muted: 195 12% 8%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 12 85% 45%; /* deeper warm accent */
+    --accent-foreground: 0 0% 100%;
+
+    /* Borders / inputs - subtle distinction from background */
+    --border: 195 15% 12%;
+    --input: 195 15% 12%;
+    --ring: 88 28% 35%;
+
+    /* Dark mode shadows - deeper and more subtle */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+    /* Dark mode brand shadows */
+    --shadow-primary: 0 8px 24px hsla(88, 28%, 35%, 0.4);
+    --shadow-secondary: 0 8px 24px hsla(261, 40%, 35%, 0.4);
+    --shadow-accent: 0 8px 24px hsla(12, 85%, 45%, 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--background)) 0%,
+      hsl(var(--muted)) 100%
+    );
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: "Poppins", sans-serif;
+  }
+
+  .font-body {
+    font-family: "Inter", sans-serif;
+  }
+
+  .font-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--success)) 100%
+    );
+  }
+
+  .gradient-secondary {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--secondary)) 0%,
+      hsl(var(--info)) 100%
+    );
+  }
+
+  .gradient-accent {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--accent)) 0%,
+      hsl(var(--destructive)) 100%
+    );
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Dark mode glass effect */
+  .dark .glass-effect {
+    backdrop-filter: blur(16px);
+    background: rgba(0, 0, 0, 0.65);
+  }
+
+  /* Dark mode gradient overlays */
+  .dark .bg-gradient-to-br.from-white\/10,
+  .dark .bg-gradient-to-br.from-white\/20,
+  .dark .bg-gradient-to-br.from-white\/30 {
+    --tw-gradient-from: rgba(0, 0, 0, 0.3);
+    --tw-gradient-to: transparent;
+  }
+
+  .hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px) scale(1.02);
+  }
+
+  .hover-lift:active {
+    transform: translateY(-2px) scale(0.98);
+  }
+}
