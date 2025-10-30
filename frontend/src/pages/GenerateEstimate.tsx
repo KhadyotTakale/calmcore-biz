@@ -1,6 +1,24 @@
 import { useState } from "react";
 import { Plus, Trash2, ArrowLeft, Save, Send, Download } from "lucide-react";
 import { motion } from "framer-motion";
+import ItemSelector from "@/components/estimate/ItemSelector";
+import { createBooking, addBookingItem } from "@/services/api";
+
+// Storage helper functions
+const saveToStorage = async (key, value) => {
+  try {
+    if (window.storage && typeof window.storage.set === "function") {
+      // Claude artifacts environment
+      await window.storage.set(key, value);
+    } else {
+      // Local development - use localStorage
+      localStorage.setItem(key, value);
+    }
+  } catch (error) {
+    console.warn("Storage save failed, falling back to localStorage:", error);
+    localStorage.setItem(key, value);
+  }
+};
 
 const GenerateEstimate = () => {
   const [customerInfo, setCustomerInfo] = useState({
@@ -8,10 +26,20 @@ const GenerateEstimate = () => {
     email: "",
     phone: "",
     address: "",
+    state: "",
+    gstin: "",
   });
 
   const [items, setItems] = useState([
-    { id: 1, description: "", quantity: 1, rate: 0, amount: 0 },
+    {
+      id: 1,
+      description: "",
+      quantity: 1,
+      rate: 0,
+      amount: 0,
+      imageUrl: null,
+      hsnCode: "",
+    },
   ]);
 
   const [estimateDetails, setEstimateDetails] = useState({
@@ -24,12 +52,22 @@ const GenerateEstimate = () => {
   });
 
   const [discount, setDiscount] = useState(0);
-  const [tax, setTax] = useState(0);
+  const [cgst, setCgst] = useState(9);
+  const [sgst, setSgst] = useState(9);
+  const [loading, setLoading] = useState(false);
 
   const addItem = () => {
     setItems([
       ...items,
-      { id: Date.now(), description: "", quantity: 1, rate: 0, amount: 0 },
+      {
+        id: Date.now(),
+        description: "",
+        quantity: 1,
+        rate: 0,
+        amount: 0,
+        imageUrl: null,
+        hsnCode: "",
+      },
     ]);
   };
 
@@ -54,30 +92,166 @@ const GenerateEstimate = () => {
     );
   };
 
+  const handleItemSelect = (selectedItem, itemId) => {
+    setItems(
+      items.map((item) => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            description: selectedItem.description,
+            quantity: selectedItem.quantity,
+            rate: selectedItem.rate,
+            amount: selectedItem.amount,
+            imageUrl: selectedItem.imageUrl || null,
+            hsnCode: selectedItem.hsnCode || "",
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const discountAmount = (subtotal * discount) / 100;
   const taxableAmount = subtotal - discountAmount;
-  const taxAmount = (taxableAmount * tax) / 100;
-  const total = taxableAmount + taxAmount;
+  const cgstAmount = (taxableAmount * cgst) / 100;
+  const sgstAmount = (taxableAmount * sgst) / 100;
+  const total = taxableAmount + cgstAmount + sgstAmount;
 
-  const handleSave = () => {
-    console.log("Saving estimate...", {
-      customerInfo,
-      estimateDetails,
-      items,
-      totals: { subtotal, discount, tax, total },
-    });
-    alert("Estimate saved successfully!");
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+
+      // Create booking
+      const booking = await createBooking();
+
+      // Add items to booking
+      const itemPromises = items
+        .filter((item) => item.description && item.rate > 0)
+        .map((item) => addBookingItem(booking.id, item.id));
+
+      await Promise.all(itemPromises);
+
+      // Save metadata to storage
+      const metadata = {
+        estimateNumber: estimateDetails.estimateNumber,
+        date: estimateDetails.date,
+        validUntil: estimateDetails.validUntil,
+        notes: estimateDetails.notes,
+        customerInfo,
+        items,
+        discount,
+        cgst,
+        sgst,
+        bookingId: booking.id,
+        bookingSlug: booking.booking_slug,
+        savedAt: new Date().toISOString(),
+      };
+
+      const storageKey = `estimate:booking:${booking.id}`;
+      await saveToStorage(storageKey, JSON.stringify(metadata));
+
+      alert(`Estimate saved successfully! Booking ID: ${booking.id}`);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error saving estimate:", error);
+      alert("Failed to save estimate: " + error.message);
+      setLoading(false);
+    }
   };
 
-  const handleSend = () => {
-    console.log("Sending estimate...");
-    alert("Estimate sent to customer!");
+  const handleSend = async () => {
+    try {
+      setLoading(true);
+
+      // Create booking
+      const booking = await createBooking();
+
+      // Add items to booking
+      const itemPromises = items
+        .filter((item) => item.description && item.rate > 0)
+        .map((item) => addBookingItem(booking.id, item.id));
+
+      await Promise.all(itemPromises);
+
+      // Save metadata to storage
+      const metadata = {
+        estimateNumber: estimateDetails.estimateNumber,
+        date: estimateDetails.date,
+        validUntil: estimateDetails.validUntil,
+        notes: estimateDetails.notes,
+        customerInfo,
+        items,
+        discount,
+        cgst,
+        sgst,
+        bookingId: booking.id,
+        bookingSlug: booking.booking_slug,
+        savedAt: new Date().toISOString(),
+      };
+
+      const storageKey = `estimate:booking:${booking.id}`;
+      await saveToStorage(storageKey, JSON.stringify(metadata));
+
+      // Generate shareable link
+      const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareableLink);
+
+      alert(
+        `Estimate link copied to clipboard!\n\nShare this link:\n${shareableLink}`
+      );
+      setLoading(false);
+    } catch (error) {
+      console.error("Error creating estimate:", error);
+      alert("Failed to create estimate: " + error.message);
+      setLoading(false);
+    }
   };
 
-  const handleDownload = () => {
-    console.log("Downloading estimate...");
-    alert("Estimate downloaded as PDF!");
+  const handleDownload = async () => {
+    try {
+      setLoading(true);
+
+      // Create booking
+      const booking = await createBooking();
+
+      // Add items to booking
+      const itemPromises = items
+        .filter((item) => item.description && item.rate > 0)
+        .map((item) => addBookingItem(booking.id, item.id));
+
+      await Promise.all(itemPromises);
+
+      // Save metadata to storage
+      const metadata = {
+        estimateNumber: estimateDetails.estimateNumber,
+        date: estimateDetails.date,
+        validUntil: estimateDetails.validUntil,
+        notes: estimateDetails.notes,
+        customerInfo,
+        items,
+        discount,
+        cgst,
+        sgst,
+        bookingId: booking.id,
+        bookingSlug: booking.booking_slug,
+        savedAt: new Date().toISOString(),
+      };
+
+      const storageKey = `estimate:booking:${booking.id}`;
+      await saveToStorage(storageKey, JSON.stringify(metadata));
+
+      // Open preview page with slug
+      window.open(`/estimate-preview?id=${booking.booking_slug}`, "_blank");
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error creating estimate:", error);
+      alert("Failed to create estimate: " + error.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -248,6 +422,40 @@ const GenerateEstimate = () => {
                     className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    value={customerInfo.state}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        state: e.target.value,
+                      })
+                    }
+                    placeholder="Maharashtra"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    GSTIN
+                  </label>
+                  <input
+                    type="text"
+                    value={customerInfo.gstin}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        gstin: e.target.value,
+                      })
+                    }
+                    placeholder="GST Number"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
               </div>
             </motion.div>
 
@@ -275,75 +483,126 @@ const GenerateEstimate = () => {
                 {items.map((item, index) => (
                   <div
                     key={item.id}
-                    className="grid gap-4 rounded-lg border border-border bg-muted/30 p-4 md:grid-cols-12"
+                    className="space-y-4 rounded-lg border border-border bg-muted/30 p-4"
                   >
-                    <div className="md:col-span-5">
+                    {/* Item Selector */}
+                    <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
-                        Description
+                        Select Item from Catalog
                       </label>
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) =>
-                          updateItem(item.id, "description", e.target.value)
+                      <ItemSelector
+                        onItemSelect={(selectedItem) =>
+                          handleItemSelect(selectedItem, item.id)
                         }
-                        placeholder="Item description"
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        min="1"
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Rate (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={item.rate}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "rate",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        min="0"
-                        step="0.01"
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Amount
-                      </label>
-                      <div className="flex h-10 items-center rounded-lg border border-input bg-muted px-3 text-sm font-medium text-foreground">
-                        ₹{item.amount.toFixed(2)}
+
+                    {/* Item Preview with Image */}
+                    {item.imageUrl && (
+                      <div className="flex items-center gap-3 rounded-lg bg-background p-3 border border-border">
+                        <img
+                          src={item.imageUrl}
+                          alt={item.description}
+                          className="w-16 h-16 object-cover rounded border border-border"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {item.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Selected item preview
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-end md:col-span-1">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        disabled={items.length === 1}
-                        className="flex h-10 w-full items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive transition-all hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    )}
+
+                    {/* Item Details Grid */}
+                    <div className="grid gap-4 md:grid-cols-12">
+                      <div className="md:col-span-4">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Description
+                        </label>
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) =>
+                            updateItem(item.id, "description", e.target.value)
+                          }
+                          placeholder="Item description"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          HSN Code
+                        </label>
+                        <input
+                          type="text"
+                          value={item.hsnCode}
+                          onChange={(e) =>
+                            updateItem(item.id, "hsnCode", e.target.value)
+                          }
+                          placeholder="HSN"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Quantity
+                        </label>
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItem(
+                              item.id,
+                              "quantity",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          min="1"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Rate (₹)
+                        </label>
+                        <input
+                          type="number"
+                          value={item.rate}
+                          onChange={(e) =>
+                            updateItem(
+                              item.id,
+                              "rate",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          min="0"
+                          step="0.01"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Amount
+                        </label>
+                        <div className="flex h-10 items-center rounded-lg border border-input bg-muted px-3 text-sm font-medium text-foreground">
+                          ₹{item.amount.toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="flex items-end md:col-span-1">
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          disabled={items.length === 1}
+                          className="flex h-10 w-full items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive transition-all hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -410,41 +669,75 @@ const GenerateEstimate = () => {
                     step="0.5"
                     className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Discount Amount
-                    </span>
-                    <span className="font-medium text-destructive">
-                      -₹{discountAmount.toFixed(2)}
+                  {discount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Discount Amount
+                      </span>
+                      <span className="font-medium text-destructive">
+                        -₹{discountAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-border pt-2">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Net Amount</span>
+                    <span className="font-medium text-foreground">
+                      ₹{taxableAmount.toFixed(2)}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-foreground">
-                    Tax (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={tax}
-                    onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax Amount</span>
-                    <span className="font-medium text-foreground">
-                      +₹{taxAmount.toFixed(2)}
-                    </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      CGST (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={cgst}
+                      onChange={(e) => setCgst(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-medium text-foreground">
+                        ₹{cgstAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      SGST (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={sgst}
+                      onChange={(e) => setSgst(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-medium text-foreground">
+                        ₹{sgstAmount.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="border-t border-border pt-3">
                   <div className="flex justify-between">
                     <span className="font-heading text-lg font-bold text-foreground">
-                      Total
+                      Grand Total
                     </span>
                     <span className="font-heading text-lg font-bold text-primary">
                       ₹{total.toFixed(2)}
@@ -456,24 +749,27 @@ const GenerateEstimate = () => {
               <div className="mt-6 space-y-3">
                 <button
                   onClick={handleSave}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground transition-all hover:bg-secondary/90"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground transition-all hover:bg-secondary/90 disabled:opacity-50"
                 >
                   <Save className="h-4 w-4" />
-                  Save Draft
+                  {loading ? "Saving..." : "Save Draft"}
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50"
                 >
                   <Download className="h-4 w-4" />
-                  Download PDF
+                  {loading ? "Creating..." : "Download PDF"}
                 </button>
                 <button
                   onClick={handleSend}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-all hover:bg-primary/90"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
-                  Send to Customer
+                  {loading ? "Generating..." : "Send to Customer"}
                 </button>
               </div>
             </motion.div>

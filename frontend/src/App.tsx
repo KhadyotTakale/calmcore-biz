@@ -13,6 +13,9 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import GenerateEstimate from "./pages/GenerateEstimate";
 import GenerateInvoice from "./pages/GenerateInvoice";
+import EstimatesList from "./pages/EstimatesList";
+import ViewEstimate from "./pages/ViewEstimate";
+import EstimatePreview from "./pages/EstimatePreview";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +37,10 @@ const App = () => (
             <Route path="/invoices/new" element={<GenerateInvoice />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
+            <Route path="/generate-estimate" element={<GenerateEstimate />} />
+            <Route path="/estimates" element={<EstimatesList />} />
+            <Route path="/estimate/:bookingId" element={<ViewEstimate />} />
+            <Route path="/estimate-preview" element={<EstimatePreview />} />
           </Routes>
         </div>
         <BottomNav />
