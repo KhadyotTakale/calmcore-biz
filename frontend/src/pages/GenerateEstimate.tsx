@@ -33,6 +33,7 @@ const GenerateEstimate = () => {
   const [items, setItems] = useState([
     {
       id: 1,
+      catalogItemId: null, // This will store the actual item ID from catalog
       description: "",
       quantity: 1,
       rate: 0,
@@ -61,6 +62,7 @@ const GenerateEstimate = () => {
       ...items,
       {
         id: Date.now(),
+        catalogItemId: null, // Add this field
         description: "",
         quantity: 1,
         rate: 0,
@@ -98,6 +100,7 @@ const GenerateEstimate = () => {
         if (item.id === itemId) {
           return {
             ...item,
+            catalogItemId: selectedItem.id, // Store the real catalog item ID
             description: selectedItem.description,
             quantity: selectedItem.quantity,
             rate: selectedItem.rate,
@@ -126,9 +129,17 @@ const GenerateEstimate = () => {
       const booking = await createBooking();
 
       // Add items to booking
-      const itemPromises = items
-        .filter((item) => item.description && item.rate > 0)
-        .map((item) => addBookingItem(booking.id, item.id));
+      const validItems = items.filter(
+        (item) => item.description && item.rate > 0 && item.catalogItemId
+      );
+
+      if (validItems.length === 0) {
+        throw new Error("Please select at least one item from the catalog");
+      }
+
+      const itemPromises = validItems.map((item) =>
+        addBookingItem(booking.id, item.catalogItemId)
+      );
 
       await Promise.all(itemPromises);
 
@@ -168,9 +179,17 @@ const GenerateEstimate = () => {
       const booking = await createBooking();
 
       // Add items to booking
-      const itemPromises = items
-        .filter((item) => item.description && item.rate > 0)
-        .map((item) => addBookingItem(booking.id, item.id));
+      const validItems = items.filter(
+        (item) => item.description && item.rate > 0 && item.catalogItemId
+      );
+
+      if (validItems.length === 0) {
+        throw new Error("Please select at least one item from the catalog");
+      }
+
+      const itemPromises = validItems.map(
+        (item) => addBookingItem(booking.id, item.catalogItemId) // ✅ CORRECT: item.catalogItemId
+      );
 
       await Promise.all(itemPromises);
 
@@ -218,9 +237,17 @@ const GenerateEstimate = () => {
       const booking = await createBooking();
 
       // Add items to booking
-      const itemPromises = items
-        .filter((item) => item.description && item.rate > 0)
-        .map((item) => addBookingItem(booking.id, item.id));
+      const validItems = items.filter(
+        (item) => item.description && item.rate > 0 && item.catalogItemId
+      );
+
+      if (validItems.length === 0) {
+        throw new Error("Please select at least one item from the catalog");
+      }
+
+      const itemPromises = validItems.map(
+        (item) => addBookingItem(booking.id, item.catalogItemId) // ✅ CORRECT: item.catalogItemId
+      );
 
       await Promise.all(itemPromises);
 

@@ -139,9 +139,11 @@ const EstimatePreview = () => {
           bookingDetails._booking_items_of_bookings?.items || [];
 
         const items = bookingItems.map((bookingItem) => {
+          // Match using catalogItemId instead of id
           const metaItem = metadata?.items?.find(
-            (i) => i.id === bookingItem.items_id
+            (i) => i.catalogItemId === bookingItem.items_id
           );
+
           const imageUrl =
             bookingItem._items?._item_images_of_items?.items?.[0]
               ?.display_image ||
@@ -594,7 +596,7 @@ const EstimatePreview = () => {
         </div>
 
         {/* Signature */}
-        <div className="text-right mt-32">
+        <div className="text-left mt-32">
           <p className="text-sm">Signature</p>
         </div>
       </div>

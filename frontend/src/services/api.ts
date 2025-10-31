@@ -279,7 +279,11 @@ async function apiFetch<T>(
 // ============================================================================
 
 export async function getAllItems(): Promise<PaginatedResponse<Item>> {
-  return apiFetch<PaginatedResponse<Item>>("/items_all", {}, true);
+  return apiFetch<PaginatedResponse<Item>>(
+    "/items_all?item_type=Product", // Capital P to match your data
+    {},
+    true
+  );
 }
 
 export async function getItems(
@@ -287,7 +291,7 @@ export async function getItems(
   perPage = 25
 ): Promise<PaginatedResponse<Item>> {
   return apiFetch<PaginatedResponse<Item>>(
-    `/items_all?page=${page}&perPage=${perPage}`,
+    `/items_all?item_type=product&page=${page}&perPage=${perPage}`,
     {},
     true
   );

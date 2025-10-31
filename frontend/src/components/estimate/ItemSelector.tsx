@@ -54,13 +54,21 @@ const ItemSelector = ({
       // Try to get from cache first
       const cachedItems = await itemsCache.getItems();
       if (cachedItems && cachedItems.length > 0) {
-        setItems(cachedItems);
-        setFilteredItems(cachedItems);
+        // Filter only products
+        const productItems = cachedItems.filter(
+          (item) => item.item_type?.toLowerCase() === "product"
+        );
+        setItems(productItems);
+        setFilteredItems(productItems);
       } else {
         // Fetch from API if cache is empty
         const response = await getAllItems();
-        setItems(response.items);
-        setFilteredItems(response.items);
+        // Filter only products (case-insensitive)
+        const productItems = response.items.filter(
+          (item) => item.item_type?.toLowerCase() === "product"
+        );
+        setItems(productItems);
+        setFilteredItems(productItems);
       }
     } catch (err) {
       console.error("Failed to load items:", err);
