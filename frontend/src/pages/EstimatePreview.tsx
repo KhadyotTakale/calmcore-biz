@@ -2,21 +2,6 @@ import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
 import { getBookingBySlug, getBooking } from "@/services/api";
 
-// Storage helper function
-const loadFromStorage = async (key) => {
-  try {
-    if (window.storage && typeof window.storage.get === "function") {
-      const result = await window.storage.get(key);
-      return result ? result.value : null;
-    } else {
-      return localStorage.getItem(key);
-    }
-  } catch (error) {
-    console.warn("Storage load failed, falling back to localStorage:", error);
-    return localStorage.getItem(key);
-  }
-};
-
 // Number to words converter
 const numberToWords = (num) => {
   const ones = [
@@ -116,6 +101,7 @@ const EstimatePreview = () => {
       }
 
       try {
+        // Get booking by slug
         const bookingArray = await getBookingBySlug(bookingSlug);
         if (!bookingArray || bookingArray.length === 0) {
           throw new Error("Booking not found");
@@ -124,76 +110,88 @@ const EstimatePreview = () => {
         const booking = bookingArray[0];
         const bookingDetails = await getBooking(booking.id);
 
-        let metadata = null;
-        try {
-          const storageKey = `estimate:booking:${booking.id}`;
-          const storedData = await loadFromStorage(storageKey);
-          if (storedData) {
-            metadata = JSON.parse(storedData);
-          }
-        } catch (err) {
-          console.warn("Could not load metadata from storage:", err);
-        }
-
+        // Get booking items with details
         const bookingItems =
           bookingDetails._booking_items_of_bookings?.items || [];
 
+        // Build items array from API data
         const items = bookingItems.map((bookingItem) => {
-          // Match using catalogItemId instead of id
-          const metaItem = metadata?.items?.find(
-            (i) => i.catalogItemId === bookingItem.items_id
-          );
-
+          const itemDetails = bookingItem._items;
           const imageUrl =
-            bookingItem._items?._item_images_of_items?.items?.[0]
-              ?.display_image ||
-            metaItem?.imageUrl ||
+            bookingItem.booking_items_info?.image_url ||
+            itemDetails?._item_images_of_items?.items?.[0]?.display_image ||
             null;
 
           return {
             id: bookingItem.items_id,
-            description:
-              metaItem?.description || bookingItem._items?.title || "Item",
-            quantity: metaItem?.quantity || 1,
-            rate: metaItem?.rate || bookingItem._items?.price || 0,
+            description: itemDetails?.title || "Item",
+            quantity: bookingItem.quantity || 1,
+            rate: parseFloat(bookingItem.price) || itemDetails?.price || 0,
             amount:
-              (metaItem?.quantity || 1) *
-              (metaItem?.rate || bookingItem._items?.price || 0),
+              (bookingItem.quantity || 1) *
+              (parseFloat(bookingItem.price) || itemDetails?.price || 0),
             imageUrl: imageUrl,
-            hsnCode: metaItem?.hsnCode || "",
+            hsnCode: bookingItem.booking_items_info?.hsn_code || "",
           };
         });
 
+        // Calculate totals (use default tax rates if not stored)
+        const firstBookingItem = bookingItems[0];
+        const savedEstimateData = firstBookingItem?.booking_items_info || {};
+        // Calculate totals using saved tax rates
         const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-        const discount = metadata?.discount || 0;
-        const cgst = metadata?.cgst || 0;
-        const sgst = metadata?.sgst || 0;
-        const discountAmount = (subtotal * discount) / 100;
-        const taxableAmount = subtotal - discountAmount;
+        const discount = savedEstimateData.tax_info?.discount || 0;
+        const cgst = savedEstimateData.tax_info?.cgst || 9;
+        const sgst = savedEstimateData.tax_info?.sgst || 9;
+        const discountAmount = 0;
+        const taxableAmount = subtotal;
         const cgstAmount = (taxableAmount * cgst) / 100;
         const sgstAmount = (taxableAmount * sgst) / 100;
         const total = taxableAmount + cgstAmount + sgstAmount;
 
+        // Get saved estimate data from first booking item
+
+        // Build estimate data from API
         setEstimateData({
-          customerInfo: metadata?.customerInfo || {
-            name: bookingDetails._customers?.Full_name || "N/A",
-            email: bookingDetails._customers?.email || "",
-            phone: "",
-            address: "",
-            state: "",
-            gstin: "",
+          customerInfo: {
+            name:
+              savedEstimateData.customer_info?.name ||
+              bookingDetails._customers?.Full_name ||
+              "Customer",
+            email:
+              savedEstimateData.customer_info?.email ||
+              bookingDetails._customers?.email ||
+              "",
+            phone:
+              savedEstimateData.customer_info?.phone ||
+              bookingDetails._customers?.cust_info?.phone ||
+              "",
+            address:
+              savedEstimateData.customer_info?.address ||
+              bookingDetails._customers?.cust_info?.address ||
+              "",
+            state:
+              savedEstimateData.customer_info?.state ||
+              bookingDetails._customers?.cust_info?.state ||
+              "",
+            gstin:
+              savedEstimateData.customer_info?.gstin ||
+              bookingDetails._customers?.cust_info?.gstin ||
+              "",
           },
           estimateDetails: {
-            estimateNumber: metadata?.estimateNumber || `EST-${booking.id}`,
+            estimateNumber:
+              savedEstimateData.estimate_details?.estimateNumber ||
+              `EST-${booking.id}`,
             date:
-              metadata?.date ||
+              savedEstimateData.estimate_details?.date ||
               new Date(booking.created_at).toISOString().split("T")[0],
             validUntil:
-              metadata?.validUntil ||
+              savedEstimateData.estimate_details?.validUntil ||
               new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
                 .toISOString()
                 .split("T")[0],
-            notes: metadata?.notes || "",
+            notes: savedEstimateData.special_instructions || "",
           },
           items,
           subtotal,

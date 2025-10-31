@@ -1,24 +1,13 @@
 import { useState } from "react";
-import { Plus, Trash2, ArrowLeft, Save, Send, Download } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
-import { createBooking, addBookingItem } from "@/services/api";
-
-// Storage helper functions
-const saveToStorage = async (key, value) => {
-  try {
-    if (window.storage && typeof window.storage.set === "function") {
-      // Claude artifacts environment
-      await window.storage.set(key, value);
-    } else {
-      // Local development - use localStorage
-      localStorage.setItem(key, value);
-    }
-  } catch (error) {
-    console.warn("Storage save failed, falling back to localStorage:", error);
-    localStorage.setItem(key, value);
-  }
-};
+import {
+  createBooking,
+  addBookingItem,
+  updateBookingItem,
+  createLead,
+} from "@/services/api";
 
 const GenerateEstimate = () => {
   const [customerInfo, setCustomerInfo] = useState({
@@ -121,113 +110,212 @@ const GenerateEstimate = () => {
   const sgstAmount = (taxableAmount * sgst) / 100;
   const total = taxableAmount + cgstAmount + sgstAmount;
 
-  const handleSave = async () => {
-    try {
-      setLoading(true);
+  // const handleSave = async () => {
+  //   try {
+  //     setLoading(true);
 
-      // Create booking
-      const booking = await createBooking();
+  //     // Create booking
+  //     const booking = await createBooking();
 
-      // Add items to booking
-      const validItems = items.filter(
-        (item) => item.description && item.rate > 0 && item.catalogItemId
-      );
+  //     // Add items to booking
+  //     const validItems = items.filter(
+  //       (item) => item.description && item.rate > 0 && item.catalogItemId
+  //     );
 
-      if (validItems.length === 0) {
-        throw new Error("Please select at least one item from the catalog");
-      }
+  //     if (validItems.length === 0) {
+  //       throw new Error("Please select at least one item from the catalog");
+  //     }
 
-      const itemPromises = validItems.map((item) =>
-        addBookingItem(booking.id, item.catalogItemId)
-      );
+  //     const itemPromises = validItems.map((item) =>
+  //       addBookingItem(booking.id, item.catalogItemId)
+  //     );
 
-      await Promise.all(itemPromises);
+  //     await Promise.all(itemPromises);
+  //     // After adding items, update each with quantity, price, and special instructions
+  //     // NEW CODE - Save everything in the FIRST item's booking_items_info
+  //     const updatePromises = validItems.map((item, index) =>
+  //       updateBookingItem(booking.id, item.catalogItemId, {
+  //         quantity: item.quantity,
+  //         price: item.rate.toString(),
+  //         booking_items_info:
+  //           index === 0
+  //             ? {
+  //                 // Store all estimate data in first item
+  //                 special_instructions: estimateDetails.notes || "",
+  //                 hsn_code: item.hsnCode || "",
+  //                 image_url: item.imageUrl || "",
+  //                 customer_info: {
+  //                   name: customerInfo.name,
+  //                   email: customerInfo.email,
+  //                   phone: customerInfo.phone,
+  //                   address: customerInfo.address,
+  //                   state: customerInfo.state,
+  //                   gstin: customerInfo.gstin,
+  //                 },
+  //                 estimate_details: {
+  //                   estimateNumber: estimateDetails.estimateNumber,
+  //                   date: estimateDetails.date,
+  //                   validUntil: estimateDetails.validUntil,
+  //                 },
+  //                 tax_info: {
+  //                   discount: discount,
+  //                   cgst: cgst,
+  //                   sgst: sgst,
+  //                 },
+  //               }
+  //             : {
+  //                 // For other items, just store HSN
+  //                 hsn_code: item.hsnCode || "",
+  //                 image_url: item.imageUrl || "",
+  //               },
+  //       })
+  //     );
 
-      // Save metadata to storage
-      const metadata = {
-        estimateNumber: estimateDetails.estimateNumber,
-        date: estimateDetails.date,
-        validUntil: estimateDetails.validUntil,
-        notes: estimateDetails.notes,
-        customerInfo,
-        items,
-        discount,
-        cgst,
-        sgst,
-        bookingId: booking.id,
-        bookingSlug: booking.booking_slug,
-        savedAt: new Date().toISOString(),
-      };
+  //     await Promise.all(updatePromises);
 
-      const storageKey = `estimate:booking:${booking.id}`;
-      await saveToStorage(storageKey, JSON.stringify(metadata));
+  //     // Create lead with customer info
+  //     if (customerInfo.name && customerInfo.email) {
+  //       try {
+  //         await createLead({
+  //           email: customerInfo.email,
+  //           first_name: customerInfo.name.split(" ")[0] || customerInfo.name,
+  //           last_name: customerInfo.name.split(" ").slice(1).join(" ") || "",
+  //           addresses: customerInfo.address
+  //             ? [
+  //                 {
+  //                   line1: customerInfo.address,
+  //                   region: customerInfo.state || "",
+  //                   country: "India",
+  //                   country_code: "IN",
+  //                 },
+  //               ]
+  //             : [],
+  //           phone_numbers: customerInfo.phone
+  //             ? [{ number: customerInfo.phone, type: "mobile" }]
+  //             : [],
+  //           config: customerInfo.gstin
+  //             ? [{ key: "gstin", val: customerInfo.gstin, datatype: "STRING" }]
+  //             : [],
+  //         });
+  //       } catch (leadError) {
+  //         console.warn("Lead creation failed:", leadError);
+  //       }
+  //     }
 
-      alert(`Estimate saved successfully! Booking ID: ${booking.id}`);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error saving estimate:", error);
-      alert("Failed to save estimate: " + error.message);
-      setLoading(false);
-    }
-  };
+  //     alert(
+  //       `Estimate saved successfully! Booking ID: ${booking.id}\nBooking Slug: ${booking.booking_slug}`
+  //     );
 
-  const handleSend = async () => {
-    try {
-      setLoading(true);
+  //     setLoading(false);
+  //   } catch (error) {
+  //     console.error("Error saving estimate:", error);
+  //     alert("Failed to save estimate: " + error.message);
+  //     setLoading(false);
+  //   }
+  // };
 
-      // Create booking
-      const booking = await createBooking();
+  // const handleSend = async () => {
+  //   try {
+  //     setLoading(true);
 
-      // Add items to booking
-      const validItems = items.filter(
-        (item) => item.description && item.rate > 0 && item.catalogItemId
-      );
+  //     // Create booking
+  //     const booking = await createBooking();
 
-      if (validItems.length === 0) {
-        throw new Error("Please select at least one item from the catalog");
-      }
+  //     // Add items to booking
+  //     const validItems = items.filter(
+  //       (item) => item.description && item.rate > 0 && item.catalogItemId
+  //     );
 
-      const itemPromises = validItems.map(
-        (item) => addBookingItem(booking.id, item.catalogItemId) // ✅ CORRECT: item.catalogItemId
-      );
+  //     if (validItems.length === 0) {
+  //       throw new Error("Please select at least one item from the catalog");
+  //     }
 
-      await Promise.all(itemPromises);
+  //     const itemPromises = validItems.map(
+  //       (item) => addBookingItem(booking.id, item.catalogItemId) // ✅ CORRECT: item.catalogItemId
+  //     );
 
-      // Save metadata to storage
-      const metadata = {
-        estimateNumber: estimateDetails.estimateNumber,
-        date: estimateDetails.date,
-        validUntil: estimateDetails.validUntil,
-        notes: estimateDetails.notes,
-        customerInfo,
-        items,
-        discount,
-        cgst,
-        sgst,
-        bookingId: booking.id,
-        bookingSlug: booking.booking_slug,
-        savedAt: new Date().toISOString(),
-      };
+  //     await Promise.all(itemPromises);
 
-      const storageKey = `estimate:booking:${booking.id}`;
-      await saveToStorage(storageKey, JSON.stringify(metadata));
+  //     // After adding items, update each with quantity, price, and special instructions
+  //     const updatePromises = validItems.map((item, index) =>
+  //       updateBookingItem(booking.id, item.catalogItemId, {
+  //         quantity: item.quantity,
+  //         price: item.rate.toString(),
+  //         booking_items_info:
+  //           index === 0
+  //             ? {
+  //                 special_instructions: estimateDetails.notes || "",
+  //                 hsn_code: item.hsnCode || "",
+  //                 image_url: item.imageUrl || "",
+  //                 customer_info: {
+  //                   name: customerInfo.name,
+  //                   email: customerInfo.email,
+  //                   phone: customerInfo.phone,
+  //                   address: customerInfo.address,
+  //                   state: customerInfo.state,
+  //                   gstin: customerInfo.gstin,
+  //                 },
+  //                 estimate_details: {
+  //                   estimateNumber: estimateDetails.estimateNumber,
+  //                   date: estimateDetails.date,
+  //                   validUntil: estimateDetails.validUntil,
+  //                 },
+  //                 tax_info: {
+  //                   discount: discount,
+  //                   cgst: cgst,
+  //                   sgst: sgst,
+  //                 },
+  //               }
+  //             : {
+  //                 hsn_code: item.hsnCode || "",
+  //                 image_url: item.imageUrl || "",
+  //               },
+  //       })
+  //     );
 
-      // Generate shareable link
-      const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
+  //     await Promise.all(updatePromises);
 
-      // Copy to clipboard
-      await navigator.clipboard.writeText(shareableLink);
+  //     // Create lead with customer info
+  //     if (customerInfo.name && customerInfo.email) {
+  //       try {
+  //         await createLead({
+  //           email: customerInfo.email,
+  //           first_name: customerInfo.name.split(" ")[0] || customerInfo.name,
+  //           last_name: customerInfo.name.split(" ").slice(1).join(" ") || "",
+  //           addresses: customerInfo.address
+  //             ? [
+  //                 {
+  //                   line1: customerInfo.address,
+  //                   region: customerInfo.state || "",
+  //                   country: "India",
+  //                   country_code: "IN",
+  //                 },
+  //               ]
+  //             : [],
+  //           phone_numbers: customerInfo.phone
+  //             ? [{ number: customerInfo.phone, type: "mobile" }]
+  //             : [],
+  //           config: customerInfo.gstin
+  //             ? [{ key: "gstin", val: customerInfo.gstin, datatype: "STRING" }]
+  //             : [],
+  //         });
+  //       } catch (leadError) {
+  //         console.warn("Lead creation failed:", leadError);
+  //       }
+  //     }
 
-      alert(
-        `Estimate link copied to clipboard!\n\nShare this link:\n${shareableLink}`
-      );
-      setLoading(false);
-    } catch (error) {
-      console.error("Error creating estimate:", error);
-      alert("Failed to create estimate: " + error.message);
-      setLoading(false);
-    }
-  };
+  //     const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
+  //     await navigator.clipboard.writeText(shareableLink);
+  //     alert(
+  //       `Estimate link copied to clipboard!\n\nShare this link:\n${shareableLink}`
+  //     );
+  //     setLoading(false);
+  //   } catch (error) {
+  //     console.error("Error creating estimate:", error);
+  //     alert("Failed to create estimate: " + error.message);
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleDownload = async () => {
     try {
@@ -250,25 +338,74 @@ const GenerateEstimate = () => {
       );
 
       await Promise.all(itemPromises);
+      // After adding items, update each with quantity, price, and special instructions
+      const updatePromises = validItems.map((item, index) =>
+        updateBookingItem(booking.id, item.catalogItemId, {
+          quantity: item.quantity,
+          price: item.rate.toString(),
+          booking_items_info:
+            index === 0
+              ? {
+                  special_instructions: estimateDetails.notes || "",
+                  hsn_code: item.hsnCode || "",
+                  image_url: item.imageUrl || "",
+                  customer_info: {
+                    name: customerInfo.name,
+                    email: customerInfo.email,
+                    phone: customerInfo.phone,
+                    address: customerInfo.address,
+                    state: customerInfo.state,
+                    gstin: customerInfo.gstin,
+                  },
+                  estimate_details: {
+                    estimateNumber: estimateDetails.estimateNumber,
+                    date: estimateDetails.date,
+                    validUntil: estimateDetails.validUntil,
+                  },
+                  tax_info: {
+                    discount: discount,
+                    cgst: cgst,
+                    sgst: sgst,
+                  },
+                }
+              : {
+                  hsn_code: item.hsnCode || "",
+                  image_url: item.imageUrl || "",
+                },
+        })
+      );
 
-      // Save metadata to storage
-      const metadata = {
-        estimateNumber: estimateDetails.estimateNumber,
-        date: estimateDetails.date,
-        validUntil: estimateDetails.validUntil,
-        notes: estimateDetails.notes,
-        customerInfo,
-        items,
-        discount,
-        cgst,
-        sgst,
-        bookingId: booking.id,
-        bookingSlug: booking.booking_slug,
-        savedAt: new Date().toISOString(),
-      };
+      await Promise.all(updatePromises);
 
-      const storageKey = `estimate:booking:${booking.id}`;
-      await saveToStorage(storageKey, JSON.stringify(metadata));
+      // Create lead with customer info
+      if (customerInfo.name && customerInfo.email) {
+        try {
+          await createLead({
+            email: customerInfo.email,
+            first_name: customerInfo.name.split(" ")[0] || customerInfo.name,
+            last_name: customerInfo.name.split(" ").slice(1).join(" ") || "",
+            addresses: customerInfo.address
+              ? [
+                  {
+                    line1: customerInfo.address,
+                    region: customerInfo.state || "",
+                    country: "India",
+                    country_code: "IN",
+                  },
+                ]
+              : [],
+            phone_numbers: customerInfo.phone
+              ? [{ number: customerInfo.phone, type: "mobile" }]
+              : [],
+            config: customerInfo.gstin
+              ? [{ key: "gstin", val: customerInfo.gstin, datatype: "STRING" }]
+              : [],
+          });
+        } catch (leadError) {
+          console.warn("Lead creation failed:", leadError);
+        }
+      }
+      const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
 
       // Open preview page with slug
       window.open(`/estimate-preview?id=${booking.booking_slug}`, "_blank");
@@ -774,14 +911,14 @@ const GenerateEstimate = () => {
               </div>
 
               <div className="mt-6 space-y-3">
-                <button
+                {/* <button
                   onClick={handleSave}
                   disabled={loading}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground transition-all hover:bg-secondary/90 disabled:opacity-50"
                 >
                   <Save className="h-4 w-4" />
                   {loading ? "Saving..." : "Save Draft"}
-                </button>
+                </button> */}
                 <button
                   onClick={handleDownload}
                   disabled={loading}
@@ -790,14 +927,14 @@ const GenerateEstimate = () => {
                   <Download className="h-4 w-4" />
                   {loading ? "Creating..." : "Download PDF"}
                 </button>
-                <button
+                {/* <button
                   onClick={handleSend}
                   disabled={loading}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
                   {loading ? "Generating..." : "Send to Customer"}
-                </button>
+                </button> */}
               </div>
             </motion.div>
           </div>

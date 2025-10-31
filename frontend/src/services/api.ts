@@ -428,6 +428,43 @@ export async function getAuthMe(): Promise<any> {
   return response.json();
 }
 
+// Update booking item with quantity, price, and special instructions
+export async function updateBookingItem(
+  bookingId: number,
+  itemId: number,
+  data: {
+    booking_items_info?: any;
+    quantity?: number;
+    price?: string | number;
+  }
+): Promise<any> {
+  return apiFetch(
+    `/booking/${bookingId}/${itemId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    false
+  );
+}
+
+// Create lead
+export async function createLead(leadPayload: any): Promise<any> {
+  return apiFetch(
+    "/lead",
+    {
+      method: "POST",
+      body: JSON.stringify({ payload: leadPayload }),
+    },
+    false
+  );
+}
+
+// Get booking items details (if needed separately)
+export async function getBookingItems(bookingId: number): Promise<any> {
+  return apiFetch(`/booking/${bookingId}/items`, {}, false);
+}
+
 // ============================================================================
 // CACHE LAYER
 // ============================================================================
@@ -731,4 +768,8 @@ export default {
   // Utils
   generateEstimateNumber,
   calculateEstimateTotals,
+
+  updateBookingItem,
+  createLead,
+  getBookingItems,
 };
