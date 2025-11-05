@@ -1,8 +1,75 @@
 import { Settings, Bell } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { getBookings } from "@/services/api";
 import dashboardHero from "@/assets/dashboard-hero.jpg";
 
 export const DashboardHeader = () => {
+  const [todaySales, setTodaySales] = useState(0);
+  const [monthSales, setMonthSales] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSalesData();
+  }, []);
+
+  const fetchSalesData = async () => {
+    try {
+      const response = await getBookings(1, 100);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      let todayTotal = 0;
+      let monthTotal = 0;
+      let allTimeTotal = 0;
+
+      response.items.forEach((booking) => {
+        const bookingDate = new Date(booking.created_at);
+        const items = booking._booking_items_of_bookings?.items || [];
+
+        const bookingAmount = items.reduce((sum, item) => {
+          const quantity = item.quantity || 1;
+          const price = parseFloat(item.price) || item._items?.price || 0;
+          return sum + quantity * price;
+        }, 0);
+
+        // Today's sales
+        if (bookingDate >= today && bookingDate < tomorrow) {
+          todayTotal += bookingAmount;
+        }
+
+        // This month's sales
+        if (bookingDate >= monthStart) {
+          monthTotal += bookingAmount;
+        }
+
+        // All time sales
+        allTimeTotal += bookingAmount;
+      });
+
+      setTodaySales(todayTotal);
+      setMonthSales(monthTotal);
+      setTotalSales(allTimeTotal);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching sales data:", error);
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    if (amount >= 100000) {
+      return `₹${(amount / 100000).toFixed(1)}L`;
+    }
+    return `₹${amount.toLocaleString("en-IN")}`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -71,19 +138,19 @@ export const DashboardHeader = () => {
           <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
             <p className="mb-1 text-xs text-muted-foreground">Today's Sales</p>
             <p className="font-mono text-xl font-semibold text-success">
-              ₹12,450
-            </p>
-          </div>
-          <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
-            <p className="mb-1 text-xs text-muted-foreground">Pending</p>
-            <p className="font-mono text-xl font-semibold text-warning">
-              ₹5,200
+              {loading ? "..." : formatCurrency(todaySales)}
             </p>
           </div>
           <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
             <p className="mb-1 text-xs text-muted-foreground">This Month</p>
             <p className="font-mono text-xl font-semibold text-primary">
-              ₹1.2L
+              {loading ? "..." : formatCurrency(monthSales)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
+            <p className="mb-1 text-xs text-muted-foreground">Total Sales</p>
+            <p className="font-mono text-xl font-semibold text-info">
+              {loading ? "..." : formatCurrency(totalSales)}
             </p>
           </div>
         </motion.div>

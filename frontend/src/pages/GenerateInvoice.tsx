@@ -73,24 +73,11 @@ const GenerateInvoice = () => {
   const taxAmount = (taxableAmount * tax) / 100;
   const total = taxableAmount + taxAmount + shippingCharges;
 
-  const handleSave = () => {
-    console.log("Saving invoice...", {
-      customerInfo,
-      invoiceDetails,
-      items,
-      totals: { subtotal, discount, tax, total },
-      paymentStatus,
-    });
-    alert("Invoice saved successfully!");
-  };
-
   const handleSend = () => {
-    console.log("Sending invoice...");
     alert("Invoice sent to customer!");
   };
 
   const handleDownload = () => {
-    console.log("Downloading invoice...");
     alert("Invoice downloaded as PDF!");
   };
 

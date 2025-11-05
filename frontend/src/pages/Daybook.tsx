@@ -1,48 +1,40 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FileText } from "lucide-react";
 import {
   Loader2,
   RefreshCw,
-  Filter,
   Search,
   Download,
   Send,
-  Plus,
   TrendingUp,
   User,
   Calendar,
   Package,
   IndianRupee,
+  CalendarCheck,
+  FileText,
 } from "lucide-react";
 import { getBookings } from "@/services/api";
 
 const TransactionCard = ({ booking, delay = 0 }) => {
   const navigate = useNavigate();
 
-  // Extract booking data
   const items = booking._booking_items_of_bookings?.items || [];
   const customer = booking._customers;
   const firstItem = items[0];
   const bookingInfo = firstItem?.booking_items_info;
 
-  // Get customer info from booking_items_info or _customers
   const customerName =
     bookingInfo?.customer_info?.name || customer?.Full_name || "Guest Customer";
   const customerPhone =
     bookingInfo?.customer_info?.phone || customer?.cust_info?.phone || "N/A";
-  const customerEmail =
-    bookingInfo?.customer_info?.email || customer?.email || "";
 
-  // Calculate total amount
   const totalAmount = items.reduce((sum, item) => {
     const quantity = item.quantity || 1;
     const price = parseFloat(item.price) || item._items?.price || 0;
     return sum + quantity * price;
   }, 0);
 
-  // Get estimate details
   const estimateNumber =
     bookingInfo?.estimate_details?.estimateNumber ||
     `EST-${booking.id.toString().slice(-6)}`;
@@ -51,12 +43,20 @@ const TransactionCard = ({ booking, delay = 0 }) => {
     new Date(booking.created_at).toISOString().split("T")[0];
   const validUntil = bookingInfo?.estimate_details?.validUntil || "";
 
-  // Format date
   const formattedDate = new Date(estimateDate).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+
+  const formattedTime = new Date(booking.created_at).toLocaleTimeString(
+    "en-IN",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }
+  );
 
   const handleDownload = (e) => {
     e.stopPropagation();
@@ -90,8 +90,6 @@ const TransactionCard = ({ booking, delay = 0 }) => {
     e.stopPropagation();
     navigate(`/invoice-preview?id=${booking.booking_slug}`);
   };
-
-  // Get status badge
   const getStatusBadge = () => {
     const now = new Date();
     const validDate = validUntil ? new Date(validUntil) : null;
@@ -111,14 +109,14 @@ const TransactionCard = ({ booking, delay = 0 }) => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay }}
+    <div
       onClick={handleCardClick}
+      style={{
+        opacity: 0,
+        animation: `fadeInUp 0.3s ease-out ${delay}s forwards`,
+      }}
       className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer"
     >
-      {/* Header with gradient */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -137,11 +135,10 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           {getStatusBadge()}
         </div>
 
-        {/* Info Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{formattedDate}</span>
+            <span className="text-muted-foreground">{formattedTime}</span>
           </div>
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -152,9 +149,7 @@ const TransactionCard = ({ booking, delay = 0 }) => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-4 space-y-3">
-        {/* Phone Number */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Phone</span>
           <span className="text-sm font-medium text-foreground">
@@ -162,7 +157,6 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           </span>
         </div>
 
-        {/* Amount */}
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <span className="text-sm font-medium text-muted-foreground">
             Total Amount
@@ -205,13 +199,25 @@ const TransactionCard = ({ booking, delay = 0 }) => {
         </div>
       </div>
 
-      {/* Hover effect overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-    </motion.div>
+
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
   );
 };
 
-const Transactions = () => {
+const Daybook = () => {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -219,27 +225,38 @@ const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchBookings();
+    fetchTodayBookings();
   }, []);
 
-  const fetchBookings = async () => {
+  const fetchTodayBookings = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await getBookings(1, 25);
-      setBookings(response.items);
+      const response = await getBookings(1, 100);
 
+      // Filter bookings for today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayBookings = response.items.filter((booking) => {
+        const bookingDate = new Date(booking.created_at);
+        return bookingDate >= today && bookingDate < tomorrow;
+      });
+
+      setBookings(todayBookings);
       setLoading(false);
     } catch (err) {
-      console.error("Error fetching bookings:", err);
-      setError(err.message || "Failed to load transactions");
+      console.error("Error fetching today's bookings:", err);
+      setError(err.message || "Failed to load today's estimates");
       setLoading(false);
     }
   };
 
   const handleRefresh = () => {
-    fetchBookings();
+    fetchTodayBookings();
   };
 
   // Filter bookings based on search query
@@ -269,7 +286,7 @@ const Transactions = () => {
     );
   });
 
-  // Calculate statistics
+  // Calculate statistics for today
   const totalAmount = bookings.reduce((sum, booking) => {
     const items = booking._booking_items_of_bookings?.items || [];
     return (
@@ -297,57 +314,50 @@ const Transactions = () => {
       })
   ).size;
 
+  const todayDate = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-28">
       <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
-                Transactions
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Manage and track all your estimates
-              </p>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="rounded-xl bg-primary/10 p-2.5">
+                  <CalendarCheck className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
+                    Today's Daybook
+                  </h1>
+                  <p className="text-sm text-muted-foreground">{todayDate}</p>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </button>
-              <button
-                onClick={() => navigate("/generate-estimate")}
-                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-accent to-destructive px-4 py-2 text-sm font-medium text-white shadow-accent hover:shadow-lg transition-all"
-              >
-                <Plus className="h-4 w-4" />
-                New Estimate
-              </button>
-            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
           </div>
 
           {/* Stats Cards */}
           <div className="grid gap-4 md:grid-cols-3 mb-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 p-4"
-            >
+            <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    Total Estimates
+                    Today's Estimates
                   </p>
                   <p className="text-2xl font-bold text-foreground">
                     {totalTransactions}
@@ -357,17 +367,14 @@ const Transactions = () => {
                   <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="rounded-2xl bg-gradient-to-br from-success/10 to-success/5 p-4"
-            >
+            <div className="rounded-2xl bg-gradient-to-br from-success/10 to-success/5 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
+                  <p className="text-sm text-muted-foreground">
+                    Today's Revenue
+                  </p>
                   <p className="text-2xl font-bold text-foreground font-mono">
                     ₹{totalAmount.toLocaleString("en-IN")}
                   </p>
@@ -376,18 +383,13 @@ const Transactions = () => {
                   <IndianRupee className="h-6 w-6 text-success" />
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="rounded-2xl bg-gradient-to-br from-warning/10 to-warning/5 p-4"
-            >
+            <div className="rounded-2xl bg-gradient-to-br from-warning/10 to-warning/5 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    Total Customers
+                    Today's Customers
                   </p>
                   <p className="text-2xl font-bold text-foreground">
                     {customersCount}
@@ -397,48 +399,35 @@ const Transactions = () => {
                   <User className="h-6 w-6 text-warning" />
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Search */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex gap-3"
-          >
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by customer name, phone, or booking ID..."
-                className="w-full rounded-xl border border-input bg-background pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-            <button className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted">
-              <Filter className="h-4 w-4" />
-              Filter
-            </button>
-          </motion.div>
-        </motion.div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search today's estimates by customer name, phone, or booking ID..."
+              className="w-full rounded-xl border border-input bg-background pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
 
         {/* Loading State */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Loading estimates...</p>
+            <p className="text-muted-foreground">
+              Loading today's estimates...
+            </p>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-center"
-          >
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-center">
             <div className="text-destructive text-4xl mb-2">⚠️</div>
             <h3 className="font-semibold text-foreground mb-2">
               Error Loading Estimates
@@ -450,17 +439,12 @@ const Transactions = () => {
             >
               Try Again
             </button>
-          </motion.div>
+          </div>
         )}
 
         {/* Transactions Grid */}
         {!loading && !error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-          >
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredBookings.length > 0 ? (
               filteredBookings.map((booking, index) => (
                 <TransactionCard
@@ -471,34 +455,30 @@ const Transactions = () => {
               ))
             ) : (
               <div className="col-span-full">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border border-border bg-card p-12 text-center"
-                >
-                  <div className="text-muted-foreground text-5xl mb-4">📊</div>
+                <div className="rounded-2xl border border-border bg-card p-12 text-center">
+                  <div className="text-muted-foreground text-5xl mb-4">📅</div>
                   <h3 className="font-semibold text-foreground mb-2">
-                    No Estimates Found
+                    No Estimates Today
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {searchQuery
-                      ? "Try adjusting your search query"
-                      : "Start creating estimates to see them here"}
+                      ? "No estimates match your search"
+                      : "No estimates have been created today yet"}
                   </p>
                   <button
                     onClick={() => navigate("/generate-estimate")}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
                   >
-                    Create Your First Estimate
+                    Create First Estimate
                   </button>
-                </motion.div>
+                </div>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-export default Transactions;
+export default Daybook;

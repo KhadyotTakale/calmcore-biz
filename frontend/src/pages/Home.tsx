@@ -45,7 +45,7 @@ const Home = () => {
             <QuickLinkCard
               icon={BookOpen}
               label="Day Book"
-              path="/reports/daybook"
+              path="/daybook"
               gradient="gradient-secondary"
               delay={0.2}
             />

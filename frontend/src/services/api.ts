@@ -29,7 +29,6 @@ class AuthManager {
 
   private async refreshToken(): Promise<void> {
     try {
-      console.log("[Auth] Fetching token from /auth/me");
       const response = await fetch(`${BASE_URL}/auth/me`, {
         headers: BASE_HEADERS,
       });
@@ -50,7 +49,6 @@ class AuthManager {
 
       // Token valid for 1 hour
       this.tokenExpiry = Date.now() + 60 * 60 * 1000;
-      console.log("[Auth] Token acquired successfully");
     } catch (error) {
       console.error("[Auth] Failed to get token:", error);
       throw error;
@@ -62,9 +60,7 @@ class AuthManager {
       return this.initPromise;
     }
 
-    this.initPromise = this.refreshToken().then(() => {
-      console.log("[Auth] Token initialized successfully");
-    });
+    this.initPromise = this.refreshToken().then(() => {});
 
     return this.initPromise;
   }
@@ -200,8 +196,6 @@ async function apiFetch<T>(
   const fullUrl = `${baseUrl}${endpoint}`;
 
   try {
-    console.log(`[API] ${options.method || "GET"} ${fullUrl}`);
-
     const response = await fetch(fullUrl, {
       ...options,
       headers: {
@@ -210,8 +204,6 @@ async function apiFetch<T>(
         ...options.headers,
       },
     });
-
-    console.log(`[API] Response: ${response.status} ${response.statusText}`);
 
     const responseText = await response.text();
 
@@ -286,12 +278,24 @@ export async function getAllItems(): Promise<PaginatedResponse<Item>> {
   );
 }
 
+export async function searchItems(
+  search: string,
+  page = 1,
+  perPage = 25
+): Promise<PaginatedResponse<Item>> {
+  return apiFetch<PaginatedResponse<Item>>(
+    `/items_all?item_type=Product&external=${JSON.stringify({ search, page })}`,
+    {},
+    true
+  );
+}
+
 export async function getItems(
   page = 1,
   perPage = 25
 ): Promise<PaginatedResponse<Item>> {
   return apiFetch<PaginatedResponse<Item>>(
-    `/items_all?item_type=product&page=${page}&perPage=${perPage}`,
+    `/items_all?item_type=Product&external=${JSON.stringify({ page })}`,
     {},
     true
   );
@@ -721,6 +725,65 @@ export function calculateEstimateTotals(
 }
 
 // ============================================================================
+// FINANCIAL YEAR ESTIMATE NUMBER GENERATOR
+// ============================================================================
+
+export async function generateFinancialYearEstimateNumber(): Promise<string> {
+  try {
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-11 (0 = January)
+    const currentYear = now.getFullYear();
+
+    // Determine financial year
+    const financialYear = currentMonth >= 3 ? currentYear : currentYear - 1;
+    const financialYearEnd = financialYear + 1;
+    const fyString = `${financialYear}-${financialYearEnd
+      .toString()
+      .slice(-2)}`;
+
+    // **CHANGED: Financial year boundaries**
+    const financialYearStart = new Date(financialYear, 3, 1).getTime(); // April 1st
+    const financialYearEndDate = new Date(
+      financialYearEnd,
+      2,
+      31,
+      23,
+      59,
+      59
+    ).getTime(); // March 31st
+
+    // **CHANGED: Fetch ALL bookings using pagination**
+    let allBookings = [];
+    let currentPage = 1;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      const bookingsResponse = await getBookings(currentPage, 100); // 100 per page
+      allBookings = allBookings.concat(bookingsResponse.items);
+
+      hasMorePages = bookingsResponse.nextPage !== null;
+      currentPage++;
+    }
+
+    // **CHANGED: Count only bookings created in current financial year**
+    const bookingsInCurrentFY = allBookings.filter(
+      (booking) =>
+        booking.created_at >= financialYearStart &&
+        booking.created_at <= financialYearEndDate
+    );
+
+    const nextNumber = bookingsInCurrentFY.length + 1;
+
+    const estimateNumber = `EST-${nextNumber.toString().padStart(3, "0")}`;
+
+    return estimateNumber;
+  } catch (error) {
+    console.error("[EstimateNumber] Failed to generate:", error);
+    return `EST-${Date.now().toString().slice(-6)}`;
+  }
+}
+
+// ============================================================================
 // INITIALIZATION
 // ============================================================================
 
@@ -768,6 +831,7 @@ export default {
   // Utils
   generateEstimateNumber,
   calculateEstimateTotals,
+  generateFinancialYearEstimateNumber,
 
   updateBookingItem,
   createLead,

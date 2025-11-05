@@ -20,10 +20,12 @@ export const DesktopNav = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-primary">
-              <span className="font-heading text-lg font-bold text-white">B</span>
+              <span className="font-heading text-lg font-bold text-white">
+                E
+              </span>
             </div>
             <span className="font-heading text-xl font-bold text-foreground">
-              BizFlow
+              Elegant Enterprises
             </span>
           </Link>
 
@@ -48,7 +50,11 @@ export const DesktopNav = () => {
                       <motion.div
                         layoutId="activeNavTab"
                         className="absolute inset-0 rounded-xl bg-primary/10"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 30,
+                        }}
                       />
                     )}
                     <Icon

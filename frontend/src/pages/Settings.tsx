@@ -17,22 +17,47 @@ const Settings = () => {
     {
       title: "Account",
       items: [
-        { icon: User, label: "Profile", description: "Manage your account details" },
-        { icon: Building2, label: "Company Info", description: "Business details and branding" },
+        {
+          icon: User,
+          label: "Profile",
+          description: "Manage your account details",
+        },
+        {
+          icon: Building2,
+          label: "Company Info",
+          description: "Business details and branding",
+        },
       ],
     },
     {
       title: "Preferences",
       items: [
-        { icon: Bell, label: "Notifications", description: "Manage notification settings", toggle: true },
-        { icon: Palette, label: "Theme", description: "Customize app appearance" },
+        {
+          icon: Bell,
+          label: "Notifications",
+          description: "Manage notification settings",
+          toggle: true,
+        },
+        {
+          icon: Palette,
+          label: "Theme",
+          description: "Customize app appearance",
+        },
       ],
     },
     {
       title: "Data & Security",
       items: [
-        { icon: Shield, label: "Security", description: "Password and authentication" },
-        { icon: Download, label: "Backup", description: "Export and backup data" },
+        {
+          icon: Shield,
+          label: "Security",
+          description: "Password and authentication",
+        },
+        {
+          icon: Download,
+          label: "Backup",
+          description: "Export and backup data",
+        },
       ],
     },
   ];
@@ -62,13 +87,15 @@ const Settings = () => {
         >
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-success shadow-primary">
-              <span className="font-heading text-2xl font-bold text-white">BP</span>
+              <span className="font-heading text-2xl font-bold text-white">
+                E
+              </span>
             </div>
             <div className="flex-1">
               <h2 className="font-heading text-xl font-semibold text-foreground">
-                BizFlow Pro
+                Elegant Pro
               </h2>
-              <p className="text-sm text-muted-foreground">admin@bizflow.com</p>
+              <p className="text-sm text-muted-foreground">admin@elegant.com</p>
               <div className="mt-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                 Premium Plan
               </div>
@@ -100,15 +127,21 @@ const Settings = () => {
                       key={item.label}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05 }}
+                      transition={{
+                        delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05,
+                      }}
                       className="flex w-full items-center gap-4 p-4 transition-colors hover:bg-muted/50"
                     >
                       <div className="rounded-xl bg-primary/10 p-3">
                         <Icon className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 text-left">
-                        <p className="font-semibold text-foreground">{item.label}</p>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
+                        <p className="font-semibold text-foreground">
+                          {item.label}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.description}
+                        </p>
                       </div>
                       {item.toggle ? (
                         <Switch />
@@ -139,7 +172,9 @@ const Settings = () => {
                 Unlimited invoices, reports, and multi-user access
               </p>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-2xl font-bold text-primary">₹999</span>
+                <span className="font-mono text-2xl font-bold text-primary">
+                  ₹999
+                </span>
                 <span className="text-sm text-muted-foreground">/month</span>
               </div>
             </div>

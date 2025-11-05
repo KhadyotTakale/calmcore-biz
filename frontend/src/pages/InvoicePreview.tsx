@@ -84,13 +84,13 @@ const numberToWords = (num) => {
   );
 };
 
-const EstimatePreview = () => {
-  const [estimateData, setEstimateData] = useState(null);
+const InvoicePreview = () => {
+  const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchEstimate = async () => {
+    const fetchInvoice = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const bookingSlug = urlParams.get("id");
 
@@ -114,13 +114,9 @@ const EstimatePreview = () => {
         const bookingItems =
           bookingDetails._booking_items_of_bookings?.items || [];
 
-        // Build items array from API data
+        // Build items array from API data (without images)
         const items = bookingItems.map((bookingItem) => {
           const itemDetails = bookingItem._items;
-          const imageUrl =
-            bookingItem.booking_items_info?.image_url ||
-            itemDetails?._item_images_of_items?.items?.[0]?.display_image ||
-            null;
 
           return {
             id: bookingItem.items_id,
@@ -130,80 +126,73 @@ const EstimatePreview = () => {
             amount:
               (bookingItem.quantity || 1) *
               (parseFloat(bookingItem.price) || itemDetails?.price || 0),
-            imageUrl: imageUrl,
           };
         });
 
         // Calculate totals (use default tax rates if not stored)
         const firstBookingItem = bookingItems[0];
-        const savedEstimateData = firstBookingItem?.booking_items_info || {};
+        const savedInvoiceData = firstBookingItem?.booking_items_info || {};
+
         // Calculate totals using saved tax rates
         const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-        const discount = savedEstimateData.tax_info?.discount || 0;
-        const cgst = savedEstimateData.tax_info?.cgst || 9;
-        const sgst = savedEstimateData.tax_info?.sgst || 9;
+        const discount = savedInvoiceData.tax_info?.discount || 0;
+        const cgst = savedInvoiceData.tax_info?.cgst || 9;
+        const sgst = savedInvoiceData.tax_info?.sgst || 9;
         const discountAmount = 0;
         const taxableAmount = subtotal;
         const cgstAmount = (taxableAmount * cgst) / 100;
         const sgstAmount = (taxableAmount * sgst) / 100;
         const total = taxableAmount + cgstAmount + sgstAmount;
 
-        // Get saved estimate data from first booking item
-
-        // Build estimate data from API
-        // Build estimate data from API
-        setEstimateData({
+        // Build invoice data from API
+        setInvoiceData({
           customerInfo: {
             name:
-              (savedEstimateData.customer_info?.name &&
-                savedEstimateData.customer_info.name.trim()) ||
-              (bookingDetails._customers?.Full_name &&
-                bookingDetails._customers.Full_name.trim()) ||
+              savedInvoiceData.customer_info?.name ||
+              bookingDetails._customers?.Full_name ||
               "Customer",
             email:
-              (savedEstimateData.customer_info?.email &&
-                savedEstimateData.customer_info.email.trim()) ||
-              (bookingDetails._customers?.email &&
-                bookingDetails._customers.email.trim()) ||
+              savedInvoiceData.customer_info?.email ||
+              bookingDetails._customers?.email ||
               "",
             phone:
-              (savedEstimateData.customer_info?.phone &&
-                savedEstimateData.customer_info.phone.trim()) ||
-              (bookingDetails._customers?.cust_info?.phone &&
-                bookingDetails._customers.cust_info.phone.trim()) ||
+              savedInvoiceData.customer_info?.phone ||
+              bookingDetails._customers?.cust_info?.phone ||
               "",
             address:
-              (savedEstimateData.customer_info?.address &&
-                savedEstimateData.customer_info.address.trim()) ||
-              (bookingDetails._customers?.cust_info?.address &&
-                bookingDetails._customers.cust_info.address.trim()) ||
+              savedInvoiceData.customer_info?.address ||
+              bookingDetails._customers?.cust_info?.address ||
               "",
             state:
-              (savedEstimateData.customer_info?.state &&
-                savedEstimateData.customer_info.state.trim()) ||
-              (bookingDetails._customers?.cust_info?.state &&
-                bookingDetails._customers.cust_info.state.trim()) ||
+              savedInvoiceData.customer_info?.state ||
+              bookingDetails._customers?.cust_info?.state ||
               "",
             gstin:
-              (savedEstimateData.customer_info?.gstin &&
-                savedEstimateData.customer_info.gstin.trim()) ||
-              (bookingDetails._customers?.cust_info?.gstin &&
-                bookingDetails._customers.cust_info.gstin.trim()) ||
+              savedInvoiceData.customer_info?.gstin ||
+              bookingDetails._customers?.cust_info?.gstin ||
               "",
           },
-          estimateDetails: {
-            estimateNumber:
-              savedEstimateData.estimate_details?.estimateNumber ||
-              `EST-${booking.id}`,
+          invoiceDetails: {
+            invoiceNumber:
+              savedInvoiceData.invoice_details?.invoiceNumber ||
+              // Extract number from EST-001 and convert to INV-001
+              (savedInvoiceData.estimate_details?.estimateNumber
+                ? savedInvoiceData.estimate_details.estimateNumber.replace(
+                    "EST-",
+                    "INV-"
+                  )
+                : `INV-${booking.id.toString().padStart(3, "0")}`), // Fallback
             date:
-              savedEstimateData.estimate_details?.date ||
+              savedInvoiceData.estimate_details?.date || // Use estimate date
+              savedInvoiceData.invoice_details?.date ||
               new Date(booking.created_at).toISOString().split("T")[0],
-            validUntil:
-              savedEstimateData.estimate_details?.validUntil ||
+            dueDate:
+              savedInvoiceData.estimate_details?.validUntil || // Use estimate validUntil as dueDate
+              savedInvoiceData.invoice_details?.dueDate ||
               new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
                 .toISOString()
                 .split("T")[0],
-            notes: savedEstimateData.special_instructions || "",
+            notes: savedInvoiceData.special_instructions || "",
           },
           items,
           subtotal,
@@ -218,13 +207,13 @@ const EstimatePreview = () => {
 
         setLoading(false);
       } catch (err) {
-        console.error("Error loading estimate:", err);
-        setError(err.message || "Failed to load estimate");
+        console.error("Error loading invoice:", err);
+        setError(err.message || "Failed to load invoice");
         setLoading(false);
       }
     };
 
-    fetchEstimate();
+    fetchInvoice();
   }, []);
 
   const handlePrint = () => {
@@ -243,7 +232,7 @@ const EstimatePreview = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white">
         <Loader2 className="h-8 w-8 animate-spin text-green-600 mb-4" />
-        <p className="text-gray-600">Loading estimate...</p>
+        <p className="text-gray-600">Loading invoice...</p>
       </div>
     );
   }
@@ -254,7 +243,7 @@ const EstimatePreview = () => {
         <div className="text-center">
           <div className="text-red-600 text-5xl mb-4">⚠️</div>
           <p className="text-gray-800 font-semibold mb-2">
-            Error Loading Estimate
+            Error Loading Invoice
           </p>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
@@ -268,11 +257,11 @@ const EstimatePreview = () => {
     );
   }
 
-  if (!estimateData) {
+  if (!invoiceData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">No estimate data found</p>
+          <p className="text-gray-600 mb-4">No invoice data found</p>
           <button
             onClick={handleClose}
             className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
@@ -286,7 +275,7 @@ const EstimatePreview = () => {
 
   const {
     customerInfo,
-    estimateDetails,
+    invoiceDetails,
     items,
     subtotal,
     discount,
@@ -296,7 +285,7 @@ const EstimatePreview = () => {
     sgst,
     sgstAmount,
     total,
-  } = estimateData;
+  } = invoiceData;
 
   const amountInWords = numberToWords(Math.floor(total)) + " Rupees Only";
 
@@ -356,21 +345,19 @@ const EstimatePreview = () => {
             </div>
           </div>
           <div className="text-right">
-            <h1 className="text-3xl font-bold text-green-700 mb-2">ESTIMATE</h1>
+            <h1 className="text-3xl font-bold text-green-700 mb-2">INVOICE</h1>
             <div className="text-xs text-gray-600 space-y-0.5">
               <p>
-                <strong>Estimate #:</strong>
-                {estimateDetails.estimateNumber}
+                <strong>Invoice #:</strong>
+                {invoiceDetails.invoiceNumber}
               </p>
               <p>
                 <strong>Date:</strong>{" "}
-                {new Date(estimateDetails.date).toLocaleDateString("en-IN")}
+                {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
               </p>
               <p>
-                <strong>Valid Until:</strong>
-                {new Date(estimateDetails.validUntil).toLocaleDateString(
-                  "en-IN"
-                )}
+                <strong>Due Date:</strong>
+                {new Date(invoiceDetails.dueDate).toLocaleDateString("en-IN")}
               </p>
             </div>
           </div>
@@ -388,11 +375,10 @@ const EstimatePreview = () => {
           </div>
           <div className="p-3 border-r border-gray-800">
             <p className="font-semibold text-sm mb-1">
-              Estimate No. - {estimateDetails.estimateNumber}
+              Invoice No. - {invoiceDetails.invoiceNumber}
             </p>
             <p className="font-semibold text-sm mb-1">
-              Date -{" "}
-              {new Date(estimateDetails.date).toLocaleDateString("en-IN")}
+              Date - {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
             </p>
             <p className="text-xs mb-1 mt-3">
               Address: {customerInfo.address || "-"}
@@ -413,13 +399,10 @@ const EstimatePreview = () => {
           </div>
         </div>
 
-        {/* Items Table */}
+        {/* Items Table - WITHOUT IMAGE COLUMN */}
         <table className="w-full border-collapse border border-gray-800 mb-4">
           <thead>
             <tr className="bg-white">
-              <th className="border border-gray-800 p-2 text-left text-sm font-bold">
-                IMAGE
-              </th>
               <th className="border border-gray-800 p-2 text-left text-sm font-bold">
                 DESCRIPTION
               </th>
@@ -437,22 +420,6 @@ const EstimatePreview = () => {
           <tbody>
             {items.map((item, index) => (
               <tr key={index}>
-                <td className="border border-gray-800 p-2 text-center">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.description}
-                      className="w-12 h-12 object-cover rounded mx-auto"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs mx-auto">
-                      No img
-                    </div>
-                  )}
-                </td>
                 <td className="border border-gray-800 p-2 text-sm">
                   {item.description}
                 </td>
@@ -469,7 +436,7 @@ const EstimatePreview = () => {
             ))}
             <tr>
               <td
-                colSpan="4"
+                colSpan="3"
                 className="border border-gray-800 p-2 text-sm font-semibold"
               >
                 Grand Total
@@ -479,7 +446,7 @@ const EstimatePreview = () => {
               </td>
             </tr>
             <tr>
-              <td colSpan="4" className="border border-gray-800 p-2 text-sm">
+              <td colSpan="3" className="border border-gray-800 p-2 text-sm">
                 {cgst}% CGST
               </td>
               <td className="border border-gray-800 p-2 text-right text-sm font-bold">
@@ -487,7 +454,7 @@ const EstimatePreview = () => {
               </td>
             </tr>
             <tr>
-              <td colSpan="4" className="border border-gray-800 p-2 text-sm">
+              <td colSpan="3" className="border border-gray-800 p-2 text-sm">
                 {sgst}% SGST
               </td>
               <td className="border border-gray-800 p-2 text-right text-sm font-bold">
@@ -496,7 +463,7 @@ const EstimatePreview = () => {
             </tr>
             <tr>
               <td
-                colSpan="4"
+                colSpan="3"
                 className="border border-gray-800 p-2 text-sm font-semibold"
               >
                 Net Amount Payable
@@ -520,11 +487,11 @@ const EstimatePreview = () => {
           <p className="font-bold text-sm mb-2">Declaration:</p>
           <ol className="list-decimal list-inside text-xs space-y-1 text-gray-700">
             <li>
-              I/We declare that this estimate shows the actual price of services
+              I/We declare that this invoice shows the actual price of services
               described and that all particulars are true and correct.
             </li>
             <li>
-              Error and Omission in this estimate shall be subject to the Pune
+              Error and Omission in this invoice shall be subject to the Pune
               Jurisdiction of Pune City.
             </li>
           </ol>
@@ -558,21 +525,19 @@ const EstimatePreview = () => {
             </div>
           </div>
           <div className="text-right">
-            <h1 className="text-3xl font-bold text-green-700 mb-2">ESTIMATE</h1>
+            <h1 className="text-3xl font-bold text-green-700 mb-2">INVOICE</h1>
             <div className="text-xs text-gray-600 space-y-0.5">
               <p>
-                <strong>Estimate #:</strong>
-                {estimateDetails.estimateNumber}
+                <strong>Invoice #:</strong>
+                {invoiceDetails.invoiceNumber}
               </p>
               <p>
                 <strong>Date:</strong>{" "}
-                {new Date(estimateDetails.date).toLocaleDateString("en-IN")}
+                {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
               </p>
               <p>
-                <strong>Valid Until:</strong>
-                {new Date(estimateDetails.validUntil).toLocaleDateString(
-                  "en-IN"
-                )}
+                <strong>Due Date:</strong>
+                {new Date(invoiceDetails.dueDate).toLocaleDateString("en-IN")}
               </p>
             </div>
           </div>
@@ -613,4 +578,4 @@ const EstimatePreview = () => {
   );
 };
 
-export default EstimatePreview;
+export default InvoicePreview;

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Trash2, ArrowLeft, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Trash2, ArrowLeft, Download, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
 import {
@@ -7,6 +7,7 @@ import {
   addBookingItem,
   updateBookingItem,
   createLead,
+  generateFinancialYearEstimateNumber,
 } from "@/services/api";
 
 const GenerateEstimate = () => {
@@ -28,12 +29,11 @@ const GenerateEstimate = () => {
       rate: 0,
       amount: 0,
       imageUrl: null,
-      hsnCode: "",
     },
   ]);
 
   const [estimateDetails, setEstimateDetails] = useState({
-    estimateNumber: `EST-${Date.now().toString().slice(-6)}`,
+    estimateNumber: "Loading...", // Temporary placeholder
     date: new Date().toISOString().split("T")[0],
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -45,6 +45,29 @@ const GenerateEstimate = () => {
   const [cgst, setCgst] = useState(9);
   const [sgst, setSgst] = useState(9);
   const [loading, setLoading] = useState(false);
+  const [bookingSlug, setBookingSlug] = useState(null);
+  const [estimateCreated, setEstimateCreated] = useState(false);
+  // Add useEffect to fetch estimate number on component mount
+  useEffect(() => {
+    const initEstimateNumber = async () => {
+      try {
+        const estimateNumber = await generateFinancialYearEstimateNumber();
+        setEstimateDetails((prev) => ({
+          ...prev,
+          estimateNumber,
+        }));
+      } catch (error) {
+        console.error("Failed to generate estimate number:", error);
+        // Fallback to timestamp-based
+        setEstimateDetails((prev) => ({
+          ...prev,
+          estimateNumber: `EST-${Date.now().toString().slice(-6)}`,
+        }));
+      }
+    };
+
+    initEstimateNumber();
+  }, []); // Run once on mount
 
   const addItem = () => {
     setItems([
@@ -57,7 +80,6 @@ const GenerateEstimate = () => {
         rate: 0,
         amount: 0,
         imageUrl: null,
-        hsnCode: "",
       },
     ]);
   };
@@ -95,7 +117,6 @@ const GenerateEstimate = () => {
             rate: selectedItem.rate,
             amount: selectedItem.amount,
             imageUrl: selectedItem.imageUrl || null,
-            hsnCode: selectedItem.hsnCode || "",
           };
         }
         return item;
@@ -110,221 +131,26 @@ const GenerateEstimate = () => {
   const sgstAmount = (taxableAmount * sgst) / 100;
   const total = taxableAmount + cgstAmount + sgstAmount;
 
-  // const handleSave = async () => {
-  //   try {
-  //     setLoading(true);
-
-  //     // Create booking
-  //     const booking = await createBooking();
-
-  //     // Add items to booking
-  //     const validItems = items.filter(
-  //       (item) => item.description && item.rate > 0 && item.catalogItemId
-  //     );
-
-  //     if (validItems.length === 0) {
-  //       throw new Error("Please select at least one item from the catalog");
-  //     }
-
-  //     const itemPromises = validItems.map((item) =>
-  //       addBookingItem(booking.id, item.catalogItemId)
-  //     );
-
-  //     await Promise.all(itemPromises);
-  //     // After adding items, update each with quantity, price, and special instructions
-  //     // NEW CODE - Save everything in the FIRST item's booking_items_info
-  //     const updatePromises = validItems.map((item, index) =>
-  //       updateBookingItem(booking.id, item.catalogItemId, {
-  //         quantity: item.quantity,
-  //         price: item.rate.toString(),
-  //         booking_items_info:
-  //           index === 0
-  //             ? {
-  //                 // Store all estimate data in first item
-  //                 special_instructions: estimateDetails.notes || "",
-  //                 hsn_code: item.hsnCode || "",
-  //                 image_url: item.imageUrl || "",
-  //                 customer_info: {
-  //                   name: customerInfo.name,
-  //                   email: customerInfo.email,
-  //                   phone: customerInfo.phone,
-  //                   address: customerInfo.address,
-  //                   state: customerInfo.state,
-  //                   gstin: customerInfo.gstin,
-  //                 },
-  //                 estimate_details: {
-  //                   estimateNumber: estimateDetails.estimateNumber,
-  //                   date: estimateDetails.date,
-  //                   validUntil: estimateDetails.validUntil,
-  //                 },
-  //                 tax_info: {
-  //                   discount: discount,
-  //                   cgst: cgst,
-  //                   sgst: sgst,
-  //                 },
-  //               }
-  //             : {
-  //                 // For other items, just store HSN
-  //                 hsn_code: item.hsnCode || "",
-  //                 image_url: item.imageUrl || "",
-  //               },
-  //       })
-  //     );
-
-  //     await Promise.all(updatePromises);
-
-  //     // Create lead with customer info
-  //     if (customerInfo.name && customerInfo.email) {
-  //       try {
-  //         await createLead({
-  //           email: customerInfo.email,
-  //           first_name: customerInfo.name.split(" ")[0] || customerInfo.name,
-  //           last_name: customerInfo.name.split(" ").slice(1).join(" ") || "",
-  //           addresses: customerInfo.address
-  //             ? [
-  //                 {
-  //                   line1: customerInfo.address,
-  //                   region: customerInfo.state || "",
-  //                   country: "India",
-  //                   country_code: "IN",
-  //                 },
-  //               ]
-  //             : [],
-  //           phone_numbers: customerInfo.phone
-  //             ? [{ number: customerInfo.phone, type: "mobile" }]
-  //             : [],
-  //           config: customerInfo.gstin
-  //             ? [{ key: "gstin", val: customerInfo.gstin, datatype: "STRING" }]
-  //             : [],
-  //         });
-  //       } catch (leadError) {
-  //         console.warn("Lead creation failed:", leadError);
-  //       }
-  //     }
-
-  //     alert(
-  //       `Estimate saved successfully! Booking ID: ${booking.id}\nBooking Slug: ${booking.booking_slug}`
-  //     );
-
-  //     setLoading(false);
-  //   } catch (error) {
-  //     console.error("Error saving estimate:", error);
-  //     alert("Failed to save estimate: " + error.message);
-  //     setLoading(false);
-  //   }
-  // };
-
-  // const handleSend = async () => {
-  //   try {
-  //     setLoading(true);
-
-  //     // Create booking
-  //     const booking = await createBooking();
-
-  //     // Add items to booking
-  //     const validItems = items.filter(
-  //       (item) => item.description && item.rate > 0 && item.catalogItemId
-  //     );
-
-  //     if (validItems.length === 0) {
-  //       throw new Error("Please select at least one item from the catalog");
-  //     }
-
-  //     const itemPromises = validItems.map(
-  //       (item) => addBookingItem(booking.id, item.catalogItemId) // ✅ CORRECT: item.catalogItemId
-  //     );
-
-  //     await Promise.all(itemPromises);
-
-  //     // After adding items, update each with quantity, price, and special instructions
-  //     const updatePromises = validItems.map((item, index) =>
-  //       updateBookingItem(booking.id, item.catalogItemId, {
-  //         quantity: item.quantity,
-  //         price: item.rate.toString(),
-  //         booking_items_info:
-  //           index === 0
-  //             ? {
-  //                 special_instructions: estimateDetails.notes || "",
-  //                 hsn_code: item.hsnCode || "",
-  //                 image_url: item.imageUrl || "",
-  //                 customer_info: {
-  //                   name: customerInfo.name,
-  //                   email: customerInfo.email,
-  //                   phone: customerInfo.phone,
-  //                   address: customerInfo.address,
-  //                   state: customerInfo.state,
-  //                   gstin: customerInfo.gstin,
-  //                 },
-  //                 estimate_details: {
-  //                   estimateNumber: estimateDetails.estimateNumber,
-  //                   date: estimateDetails.date,
-  //                   validUntil: estimateDetails.validUntil,
-  //                 },
-  //                 tax_info: {
-  //                   discount: discount,
-  //                   cgst: cgst,
-  //                   sgst: sgst,
-  //                 },
-  //               }
-  //             : {
-  //                 hsn_code: item.hsnCode || "",
-  //                 image_url: item.imageUrl || "",
-  //               },
-  //       })
-  //     );
-
-  //     await Promise.all(updatePromises);
-
-  //     // Create lead with customer info
-  //     if (customerInfo.name && customerInfo.email) {
-  //       try {
-  //         await createLead({
-  //           email: customerInfo.email,
-  //           first_name: customerInfo.name.split(" ")[0] || customerInfo.name,
-  //           last_name: customerInfo.name.split(" ").slice(1).join(" ") || "",
-  //           addresses: customerInfo.address
-  //             ? [
-  //                 {
-  //                   line1: customerInfo.address,
-  //                   region: customerInfo.state || "",
-  //                   country: "India",
-  //                   country_code: "IN",
-  //                 },
-  //               ]
-  //             : [],
-  //           phone_numbers: customerInfo.phone
-  //             ? [{ number: customerInfo.phone, type: "mobile" }]
-  //             : [],
-  //           config: customerInfo.gstin
-  //             ? [{ key: "gstin", val: customerInfo.gstin, datatype: "STRING" }]
-  //             : [],
-  //         });
-  //       } catch (leadError) {
-  //         console.warn("Lead creation failed:", leadError);
-  //       }
-  //     }
-
-  //     const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
-  //     await navigator.clipboard.writeText(shareableLink);
-  //     alert(
-  //       `Estimate link copied to clipboard!\n\nShare this link:\n${shareableLink}`
-  //     );
-  //     setLoading(false);
-  //   } catch (error) {
-  //     console.error("Error creating estimate:", error);
-  //     alert("Failed to create estimate: " + error.message);
-  //     setLoading(false);
-  //   }
-  // };
-
-  const handleDownload = async () => {
+  const handleCreateEstimate = async () => {
     try {
       setLoading(true);
 
-      // Create booking
-      const booking = await createBooking();
+      // IMPROVED Validation - Check if fields are actually filled
+      const name = customerInfo.name.trim();
+      const phone = customerInfo.phone.trim();
 
-      // Add items to booking
+      if (!name) {
+        alert("Please enter customer name");
+        setLoading(false);
+        return;
+      }
+
+      if (!phone) {
+        alert("Please enter customer phone number");
+        setLoading(false);
+        return;
+      }
+
       const validItems = items.filter(
         (item) => item.description && item.rate > 0 && item.catalogItemId
       );
@@ -333,12 +159,26 @@ const GenerateEstimate = () => {
         throw new Error("Please select at least one item from the catalog");
       }
 
-      const itemPromises = validItems.map(
-        (item) => addBookingItem(booking.id, item.catalogItemId) // ✅ CORRECT: item.catalogItemId
-      );
+      // Create booking
+      const booking = await createBooking();
 
+      // Add items
+      const itemPromises = validItems.map((item) =>
+        addBookingItem(booking.id, item.catalogItemId)
+      );
       await Promise.all(itemPromises);
-      // After adding items, update each with quantity, price, and special instructions
+
+      // FIXED: Use trimmed values and ensure all customer data is included
+      const customerData = {
+        name: name,
+        email: customerInfo.email.trim(),
+        phone: phone,
+        address: customerInfo.address.trim(),
+        state: customerInfo.state.trim(),
+        gstin: customerInfo.gstin.trim(),
+      };
+
+      // Update items with full data
       const updatePromises = validItems.map((item, index) =>
         updateBookingItem(booking.id, item.catalogItemId, {
           quantity: item.quantity,
@@ -346,17 +186,9 @@ const GenerateEstimate = () => {
           booking_items_info:
             index === 0
               ? {
-                  special_instructions: estimateDetails.notes || "",
-                  hsn_code: item.hsnCode || "",
+                  special_instructions: estimateDetails.notes.trim() || "",
                   image_url: item.imageUrl || "",
-                  customer_info: {
-                    name: customerInfo.name,
-                    email: customerInfo.email,
-                    phone: customerInfo.phone,
-                    address: customerInfo.address,
-                    state: customerInfo.state,
-                    gstin: customerInfo.gstin,
-                  },
+                  customer_info: customerData, // Use the validated customer data
                   estimate_details: {
                     estimateNumber: estimateDetails.estimateNumber,
                     date: estimateDetails.date,
@@ -369,53 +201,81 @@ const GenerateEstimate = () => {
                   },
                 }
               : {
-                  hsn_code: item.hsnCode || "",
                   image_url: item.imageUrl || "",
                 },
         })
       );
-
       await Promise.all(updatePromises);
 
-      // Create lead with customer info
-      if (customerInfo.name && customerInfo.email) {
+      // Create lead - use validated customer data
+      if (customerData.name && customerData.email) {
         try {
           await createLead({
-            email: customerInfo.email,
-            first_name: customerInfo.name.split(" ")[0] || customerInfo.name,
-            last_name: customerInfo.name.split(" ").slice(1).join(" ") || "",
-            addresses: customerInfo.address
+            email: customerData.email,
+            first_name: customerData.name.split(" ")[0] || customerData.name,
+            last_name: customerData.name.split(" ").slice(1).join(" ") || "",
+            addresses: customerData.address
               ? [
                   {
-                    line1: customerInfo.address,
-                    region: customerInfo.state || "",
+                    line1: customerData.address,
+                    region: customerData.state || "",
                     country: "India",
                     country_code: "IN",
                   },
                 ]
               : [],
-            phone_numbers: customerInfo.phone
-              ? [{ number: customerInfo.phone, type: "mobile" }]
+            phone_numbers: customerData.phone
+              ? [{ number: customerData.phone, type: "mobile" }]
               : [],
-            config: customerInfo.gstin
-              ? [{ key: "gstin", val: customerInfo.gstin, datatype: "STRING" }]
+            config: customerData.gstin
+              ? [{ key: "gstin", val: customerData.gstin, datatype: "STRING" }]
               : [],
           });
         } catch (leadError) {
           console.warn("Lead creation failed:", leadError);
         }
       }
-      const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
 
-      // Open preview page with slug
-      window.open(`/estimate-preview?id=${booking.booking_slug}`, "_blank");
+      // Save slug and enable other buttons
+      setBookingSlug(booking.booking_slug);
+      setEstimateCreated(true);
 
+      alert(
+        `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\n\nYou can now download or send to customer.`
+      );
       setLoading(false);
     } catch (error) {
       console.error("Error creating estimate:", error);
       alert("Failed to create estimate: " + error.message);
       setLoading(false);
     }
+  };
+
+  // Button 2: Download PDF (Simple - just opens link)
+  const handleDownload = () => {
+    if (!bookingSlug) return;
+    window.open(`/estimate-preview?id=${bookingSlug}`, "_blank");
+  };
+
+  // Button 3: Send to Customer (Simple - just opens WhatsApp)
+  const handleSendToCustomer = () => {
+    if (!bookingSlug) return;
+
+    const shareableLink = `${window.location.origin}/estimate-preview?id=${bookingSlug}`;
+    const message = `Hello ${
+      customerInfo.name
+    }! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
+      estimateDetails.validUntil
+    ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
+      2
+    )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+
+    const phone = customerInfo.phone.replace(/\D/g, "");
+    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+      message
+    )}`;
+
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -565,7 +425,7 @@ const GenerateEstimate = () => {
                         phone: e.target.value,
                       })
                     }
-                    placeholder="+91 XXXXX XXXXX"
+                    placeholder="XXXXXXXXXX"
                     className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -684,8 +544,8 @@ const GenerateEstimate = () => {
                     )}
 
                     {/* Item Details Grid */}
-                    <div className="grid gap-4 md:grid-cols-12">
-                      <div className="md:col-span-4">
+                    <div className="grid gap-4 md:grid-cols-20">
+                      <div className="md:col-span-10">
                         <label className="mb-2 block text-sm font-medium text-foreground">
                           Description
                         </label>
@@ -699,7 +559,7 @@ const GenerateEstimate = () => {
                           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
-                      <div className="md:col-span-2">
+                      {/* <div className="md:col-span-2">
                         <label className="mb-2 block text-sm font-medium text-foreground">
                           HSN Code
                         </label>
@@ -712,8 +572,8 @@ const GenerateEstimate = () => {
                           placeholder="HSN"
                           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
-                      </div>
-                      <div className="md:col-span-2">
+                      </div> */}
+                      <div className="md:col-span-3">
                         <label className="mb-2 block text-sm font-medium text-foreground">
                           Quantity
                         </label>
@@ -731,7 +591,7 @@ const GenerateEstimate = () => {
                           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-3">
                         <label className="mb-2 block text-sm font-medium text-foreground">
                           Rate (₹)
                         </label>
@@ -750,7 +610,7 @@ const GenerateEstimate = () => {
                           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
-                      <div className="md:col-span-1">
+                      <div className="md:col-span-3">
                         <label className="mb-2 block text-sm font-medium text-foreground">
                           Amount
                         </label>
@@ -911,30 +771,61 @@ const GenerateEstimate = () => {
               </div>
 
               <div className="mt-6 space-y-3">
-                {/* <button
-                  onClick={handleSave}
+                {/* Primary Action: Create Estimate */}
+                <button
+                  onClick={handleCreateEstimate}
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground transition-all hover:bg-secondary/90 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Save className="h-4 w-4" />
-                  {loading ? "Saving..." : "Save Draft"}
-                </button> */}
+                  {loading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      Creating...
+                    </>
+                  ) : estimateCreated ? (
+                    <>Create New Version</>
+                  ) : (
+                    <>Create Estimate</>
+                  )}
+                </button>
+
+                {/* Show success message after creation */}
+                {estimateCreated && (
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-center">
+                    <p className="text-sm font-medium text-green-800">
+                      ✓ Estimate Created Successfully
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Estimate #{estimateDetails.estimateNumber}
+                    </p>
+                  </div>
+                )}
+
+                {/* Secondary Actions: Download & Send */}
                 <button
                   onClick={handleDownload}
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50"
+                  disabled={!estimateCreated || loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="h-4 w-4" />
-                  {loading ? "Creating..." : "Download PDF"}
+                  Download PDF
                 </button>
-                {/* <button
-                  onClick={handleSend}
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+
+                <button
+                  onClick={handleSendToCustomer}
+                  disabled={!estimateCreated || loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-medium text-white transition-all hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4" />
-                  {loading ? "Generating..." : "Send to Customer"}
-                </button> */}
+                  Send to Customer
+                </button>
+
+                {/* Helper text when buttons are disabled */}
+                {!estimateCreated && (
+                  <p className="text-xs text-center text-muted-foreground mt-2">
+                    Create estimate first to enable download and send options
+                  </p>
+                )}
               </div>
             </motion.div>
           </div>
