@@ -581,13 +581,6 @@ const GenerateInvoice = () => {
 
               <div className="mt-6 space-y-3">
                 <button
-                  onClick={handleSave}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 font-medium text-accent-foreground transition-all hover:bg-accent/90"
-                >
-                  <Save className="h-4 w-4" />
-                  Save Invoice
-                </button>
-                <button
                   onClick={handleDownload}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted"
                 >
