@@ -135,9 +135,9 @@ const GenerateEstimate = () => {
     try {
       setLoading(true);
 
-      // IMPROVED Validation - Check if fields are actually filled
-      const name = customerInfo.name.trim();
-      const phone = customerInfo.phone.trim();
+      // Validate required fields
+      const name = customerInfo.name?.trim() || "";
+      const phone = customerInfo.phone?.trim() || "";
 
       if (!name) {
         alert("Please enter customer name");
@@ -161,54 +161,69 @@ const GenerateEstimate = () => {
 
       // Create booking
       const booking = await createBooking();
+      console.log("✓ Booking created:", booking.id);
 
-      // Add items
-      const itemPromises = validItems.map((item) =>
-        addBookingItem(booking.id, item.catalogItemId)
-      );
-      await Promise.all(itemPromises);
-
-      // FIXED: Use trimmed values and ensure all customer data is included
+      // Build customer data object with only non-empty values
       const customerData = {
         name: name,
-        email: customerInfo.email.trim(),
+        email: customerInfo.email?.trim() || "",
         phone: phone,
-        address: customerInfo.address.trim(),
-        state: customerInfo.state.trim(),
-        gstin: customerInfo.gstin.trim(),
+        address: customerInfo.address?.trim() || "",
+        state: customerInfo.state?.trim() || "",
+        gstin: customerInfo.gstin?.trim() || "",
       };
 
-      // Update items with full data
-      const updatePromises = validItems.map((item, index) =>
-        updateBookingItem(booking.id, item.catalogItemId, {
-          quantity: item.quantity,
-          price: item.rate.toString(),
-          booking_items_info:
-            index === 0
-              ? {
-                  special_instructions: estimateDetails.notes.trim() || "",
-                  image_url: item.imageUrl || "",
-                  customer_info: customerData, // Use the validated customer data
-                  estimate_details: {
-                    estimateNumber: estimateDetails.estimateNumber,
-                    date: estimateDetails.date,
-                    validUntil: estimateDetails.validUntil,
-                  },
-                  tax_info: {
-                    discount: discount,
-                    cgst: cgst,
-                    sgst: sgst,
-                  },
-                }
-              : {
-                  image_url: item.imageUrl || "",
-                },
-        })
-      );
-      await Promise.all(updatePromises);
+      console.log("📋 Customer data to save:", customerData);
 
-      // Create lead - use validated customer data
-      if (customerData.name && customerData.email) {
+      // Add items sequentially and update each one immediately
+      // This ensures the first item gets the full customer data
+      for (let i = 0; i < validItems.length; i++) {
+        const item = validItems[i];
+
+        // Add item to booking
+        await addBookingItem(booking.id, item.catalogItemId);
+        console.log(
+          `✓ Added item ${i + 1}/${validItems.length}: ${item.description}`
+        );
+
+        // Update the item with its data
+        if (i === 0) {
+          // FIRST item gets ALL the estimate data
+          await updateBookingItem(booking.id, item.catalogItemId, {
+            quantity: item.quantity,
+            price: item.rate.toString(),
+            booking_items_info: {
+              special_instructions: estimateDetails.notes?.trim() || "",
+              image_url: item.imageUrl || "",
+              customer_info: customerData,
+              estimate_details: {
+                estimateNumber: estimateDetails.estimateNumber,
+                date: estimateDetails.date,
+                validUntil: estimateDetails.validUntil,
+              },
+              tax_info: {
+                discount: discount,
+                cgst: cgst,
+                sgst: sgst,
+              },
+            },
+          });
+          console.log("✓ First item updated with COMPLETE estimate data");
+        } else {
+          // Remaining items get basic data only
+          await updateBookingItem(booking.id, item.catalogItemId, {
+            quantity: item.quantity,
+            price: item.rate.toString(),
+            booking_items_info: {
+              image_url: item.imageUrl || "",
+            },
+          });
+          console.log(`✓ Item ${i + 1} updated with basic data`);
+        }
+      }
+
+      // Create lead - only if email is provided
+      if (customerData.email) {
         try {
           await createLead({
             email: customerData.email,
@@ -231,21 +246,27 @@ const GenerateEstimate = () => {
               ? [{ key: "gstin", val: customerData.gstin, datatype: "STRING" }]
               : [],
           });
+          console.log("✓ Lead created");
         } catch (leadError) {
-          console.warn("Lead creation failed:", leadError);
+          console.warn("⚠️ Lead creation failed (non-critical):", leadError);
         }
       }
 
-      // Save slug and enable other buttons
+      // Save booking slug and mark as created
       setBookingSlug(booking.booking_slug);
       setEstimateCreated(true);
 
+      console.log("✅ ESTIMATE CREATED SUCCESSFULLY");
+      console.log("Booking ID:", booking.id);
+      console.log("Booking Slug:", booking.booking_slug);
+      console.log("Customer:", customerData.name);
+
       alert(
-        `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\n\nYou can now download or send to customer.`
+        `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
       );
       setLoading(false);
     } catch (error) {
-      console.error("Error creating estimate:", error);
+      console.error("❌ Error creating estimate:", error);
       alert("Failed to create estimate: " + error.message);
       setLoading(false);
     }
