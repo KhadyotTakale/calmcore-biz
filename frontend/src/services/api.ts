@@ -167,6 +167,37 @@ export interface AddBookingItemResponse {
   items_id: number;
 }
 
+export interface Shop {
+  id: string;
+  created_at: number;
+  name: string;
+  description: string;
+  logo: string;
+  custom_domain: string;
+  Is_visible: boolean;
+  slug: string;
+  allow_affiliate: boolean;
+  testmode: boolean;
+}
+
+export interface CreateShopRequest {
+  name: string;
+  description: string;
+  logo: string;
+  custom_domain: string;
+  Is_visible: number; // 0 or 1
+  slug: string;
+}
+
+export interface UpdateShopRequest {
+  name?: string;
+  description?: string;
+  logo?: string;
+  custom_domain?: string;
+  Is_visible?: number; // 0 or 1
+  slug?: string;
+}
+
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
@@ -694,6 +725,51 @@ export async function getBookingBySlug(
   return apiFetch<Booking[]>(`/booking_by_slug/${bookingSlug}`, {}, false);
 }
 
+// shopinfo
+
+// Get shop by ID - Uses ITEMS_BOOKINGS_URL
+export async function getShop(shopId: string): Promise<Shop> {
+  return apiFetch<Shop>(`/shops/${shopId}`, {}, true);
+}
+
+// Create new shop - Uses ITEMS_BOOKINGS_URL
+export async function createShop(data: CreateShopRequest): Promise<Shop> {
+  return apiFetch<Shop>(
+    "/shops",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    true
+  );
+}
+
+// Update shop - Uses ITEMS_BOOKINGS_URL
+export async function updateShop(
+  shopId: string,
+  data: UpdateShopRequest
+): Promise<Shop> {
+  return apiFetch<Shop>(
+    `/shops/${shopId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    true
+  );
+}
+
+// Delete shop - Uses ITEMS_BOOKINGS_URL
+export async function deleteShop(shopId: string): Promise<void> {
+  return apiFetch<void>(
+    `/shops/${shopId}`,
+    {
+      method: "DELETE",
+    },
+    true
+  );
+}
+
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
@@ -817,6 +893,12 @@ export default {
   addBookingItem,
   createCustomerInvite,
   getBookingBySlug,
+
+  // Shops
+  getShop,
+  createShop,
+  updateShop,
+  deleteShop,
 
   // Storage
   saveEstimateToStorage,

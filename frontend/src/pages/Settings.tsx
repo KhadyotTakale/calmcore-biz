@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import {
   User,
   Building2,
@@ -7,12 +9,85 @@ import {
   Download,
   LogOut,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 
 const Settings = () => {
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Load Razorpay script
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleSubscription = async () => {
+    setIsProcessing(true);
+
+    // Load Razorpay script
+    const scriptLoaded = await loadRazorpayScript();
+
+    if (!scriptLoaded) {
+      alert(
+        "Failed to load Razorpay SDK. Please check your internet connection."
+      );
+      setIsProcessing(false);
+      return;
+    }
+
+    // Razorpay test mode options
+    const options = {
+      key: "rzp_test_1DP5mmOlF5G5ag", // Replace with YOUR Razorpay test key
+      amount: 9900, // Amount in paise (₹999 = 99900 paise)
+      currency: "INR",
+      name: "Elegant Pro",
+      description: "Premium Subscription - Monthly",
+      image: "https://cdn-icons-png.flaticon.com/512/2942/2942813.png",
+      handler: function (response) {
+        // Payment successful
+        alert(
+          `Payment Successful!\nPayment ID: ${response.razorpay_payment_id}`
+        );
+        console.log("Payment Response:", response);
+        setIsProcessing(false);
+        // Here you would typically:
+        // 1. Send payment details to your backend
+        // 2. Verify payment signature
+        // 3. Update user subscription status
+      },
+      prefill: {
+        name: "Elegant Pro User",
+        email: "admin@elegant.com",
+        contact: "9999999999",
+      },
+      notes: {
+        subscription_plan: "premium_monthly",
+        app_name: "Elegant Pro Estimate Generator",
+      },
+      theme: {
+        color: "#6366f1",
+      },
+      modal: {
+        ondismiss: function () {
+          setIsProcessing(false);
+          console.log("Payment cancelled by user");
+        },
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+  };
+
   const settingsSections = [
     {
       title: "Account",
@@ -21,11 +96,16 @@ const Settings = () => {
           icon: User,
           label: "Profile",
           description: "Manage your account details",
+          onClick: () => {
+            // TODO: Navigate to profile page
+            console.log("Navigate to profile");
+          },
         },
         {
           icon: Building2,
           label: "Company Info",
           description: "Business details and branding",
+          onClick: () => navigate("/company-info"),
         },
       ],
     },
@@ -37,11 +117,18 @@ const Settings = () => {
           label: "Notifications",
           description: "Manage notification settings",
           toggle: true,
+          onClick: () => {
+            // Toggle functionality
+          },
         },
         {
           icon: Palette,
           label: "Theme",
           description: "Customize app appearance",
+          onClick: () => {
+            // TODO: Navigate to theme settings
+            console.log("Navigate to theme");
+          },
         },
       ],
     },
@@ -52,11 +139,19 @@ const Settings = () => {
           icon: Shield,
           label: "Security",
           description: "Password and authentication",
+          onClick: () => {
+            // TODO: Navigate to security settings
+            console.log("Navigate to security");
+          },
         },
         {
           icon: Download,
           label: "Backup",
           description: "Export and backup data",
+          onClick: () => {
+            // TODO: Navigate to backup page
+            console.log("Navigate to backup");
+          },
         },
       ],
     },
@@ -130,6 +225,7 @@ const Settings = () => {
                       transition={{
                         delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05,
                       }}
+                      onClick={item.onClick}
                       className="flex w-full items-center gap-4 p-4 transition-colors hover:bg-muted/50"
                     >
                       <div className="rounded-xl bg-primary/10 p-3">
@@ -156,30 +252,40 @@ const Settings = () => {
           ))}
         </div>
 
-        {/* Subscription Info */}
-        <motion.div
+        {/* Subscription Info - Now Clickable with Razorpay */}
+        <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="rounded-2xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-success/5 p-6"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleSubscription}
+          disabled={isProcessing}
+          className="w-full rounded-2xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-success/5 p-6 text-left transition-all hover:border-primary/50 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <h3 className="mb-2 font-heading text-lg font-semibold text-foreground">
                 Premium Subscription
               </h3>
               <p className="mb-4 text-sm text-muted-foreground">
                 Unlimited invoices, reports, and multi-user access
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-4">
                 <span className="font-mono text-2xl font-bold text-primary">
-                  ₹999
+                  ₹99
                 </span>
                 <span className="text-sm text-muted-foreground">/month</span>
               </div>
+              <div className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-primary-foreground w-fit shadow-sm hover:bg-primary/90 transition-colors">
+                <CreditCard className="h-4 w-4" />
+                <span className="font-semibold text-sm">
+                  {isProcessing ? "Processing..." : "Subscribe Now"}
+                </span>
+              </div>
             </div>
           </div>
-        </motion.div>
+        </motion.button>
 
         {/* Logout Button */}
         <motion.button

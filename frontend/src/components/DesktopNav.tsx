@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const navItems = [
-  { icon: Home, label: "Home", path: "/" },
+  { icon: Home, label: "Home", path: "/home" },
   { icon: Receipt, label: "Transactions", path: "/transactions" },
   { icon: FileText, label: "Invoices", path: "/invoices" },
   { icon: BarChart3, label: "Reports", path: "/reports" },

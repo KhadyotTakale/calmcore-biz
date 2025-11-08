@@ -3,6 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  ClerkProvider,
+  SignedIn,
+  SignedOut,
+  RedirectToSignIn,
+} from "@clerk/clerk-react";
 import { BottomNav } from "@/components/BottomNav";
 import { DesktopNav } from "@/components/DesktopNav";
 import Home from "./pages/Home";
@@ -18,15 +24,36 @@ import ViewEstimate from "./pages/ViewEstimate";
 import EstimatePreview from "./pages/EstimatePreview";
 import Daybook from "./pages/Daybook";
 import InvoicePreview from "./pages/InvoicePreview";
+import CompanyInfo from "./pages/CompanyInfo";
+import LandingPage from "./pages/LandingPage";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Publishable Key");
+}
+
+// Protected Route Wrapper
+const ProtectedRoute = ({ children }) => {
+  return (
+    <>
+      <SignedIn>{children}</SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  );
+};
 
 // Create a Layout component that conditionally shows navigation
 const Layout = ({ children }) => {
   const location = useLocation();
 
   // Pages where navigation should be hidden
-  const hideNavRoutes = ["/estimate-preview", "/invoice-preview"];
+  const hideNavRoutes = ["/estimate-preview", "/invoice-preview", "/auth", "/"];
   const shouldHideNav = hideNavRoutes.includes(location.pathname);
 
   return (
@@ -45,31 +72,128 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            {/* Main Pages */}
-            <Route path="/" element={<Home />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/daybook" element={<Daybook />} />
+        <ClerkProvider
+          publishableKey={PUBLISHABLE_KEY}
+          afterSignInUrl="/home"
+          afterSignUpUrl="/home"
+        >
+          <Layout>
+            <Routes>
+              {/* Public Routes - No authentication required */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/estimate-preview" element={<EstimatePreview />} />
+              <Route path="/invoice-preview" element={<InvoicePreview />} />
 
-            {/* Estimates Routes */}
-            <Route path="/estimates" element={<EstimatesList />} />
-            <Route path="/estimates/new" element={<GenerateEstimate />} />
-            <Route path="/generate-estimate" element={<GenerateEstimate />} />
-            <Route path="/estimate/:bookingId" element={<ViewEstimate />} />
-            <Route path="/estimate-preview" element={<EstimatePreview />} />
+              {/* Protected Routes - Authentication required */}
+              <Route
+                path="/home"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transactions"
+                element={
+                  <ProtectedRoute>
+                    <Transactions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices"
+                element={
+                  <ProtectedRoute>
+                    <Invoices />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <Reports />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/daybook"
+                element={
+                  <ProtectedRoute>
+                    <Daybook />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Invoices Routes */}
-            <Route path="/invoices/new" element={<GenerateInvoice />} />
-            <Route path="/invoice-preview" element={<InvoicePreview />} />
+              {/* Protected Estimates Routes */}
+              <Route
+                path="/estimates"
+                element={
+                  <ProtectedRoute>
+                    <EstimatesList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/estimates/new"
+                element={
+                  <ProtectedRoute>
+                    <GenerateEstimate />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/generate-estimate"
+                element={
+                  <ProtectedRoute>
+                    <GenerateEstimate />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/estimate/:bookingId"
+                element={
+                  <ProtectedRoute>
+                    <ViewEstimate />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* 404 Catch-All - MUST BE LAST */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+              {/* Protected Invoices Routes */}
+              <Route
+                path="/invoices/new"
+                element={
+                  <ProtectedRoute>
+                    <GenerateInvoice />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Protected Company Info */}
+              <Route
+                path="/company-info"
+                element={
+                  <ProtectedRoute>
+                    <CompanyInfo />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 404 Catch-All - MUST BE LAST */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </ClerkProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

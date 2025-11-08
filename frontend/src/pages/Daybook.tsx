@@ -66,7 +66,7 @@ const TransactionCard = ({ booking, delay = 0 }) => {
   const handleSendToCustomer = (e) => {
     e.stopPropagation();
     const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
-    const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\n${
+    const message = `Hello ${customerName}! \n\nThank you for your interest in Mrudgandh services. \n\nPlease find your estimate here:\n${shareableLink}\n\n${
       validUntil
         ? `Valid until: ${new Date(validUntil).toLocaleDateString("en-IN")}\n`
         : ""
@@ -456,7 +456,7 @@ const Daybook = () => {
             ) : (
               <div className="col-span-full">
                 <div className="rounded-2xl border border-border bg-card p-12 text-center">
-                  <div className="text-muted-foreground text-5xl mb-4">📅</div>
+                  {/* <div className="text-muted-foreground text-5xl mb-4">📅</div> */}
                   <h3 className="font-semibold text-foreground mb-2">
                     No Estimates Today
                   </h3>

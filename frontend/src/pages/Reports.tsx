@@ -1,9 +1,17 @@
-import { TrendingUp, DollarSign, ShoppingCart, CreditCard, Calendar } from "lucide-react";
+import {
+  TrendingUp,
+  DollarSign,
+  ShoppingCart,
+  CreditCard,
+  Calendar,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const Reports = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen pb-28">
       <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
@@ -113,10 +121,30 @@ const Reports = () => {
             </h3>
             <div className="space-y-4">
               {[
-                { label: "Inventory", amount: "₹28,000", percentage: 45, color: "bg-primary" },
-                { label: "Salaries", amount: "₹18,000", percentage: 30, color: "bg-secondary" },
-                { label: "Office", amount: "₹10,000", percentage: 15, color: "bg-accent" },
-                { label: "Utilities", amount: "₹7,000", percentage: 10, color: "bg-warning" },
+                {
+                  label: "Inventory",
+                  amount: "₹28,000",
+                  percentage: 45,
+                  color: "bg-primary",
+                },
+                {
+                  label: "Salaries",
+                  amount: "₹18,000",
+                  percentage: 30,
+                  color: "bg-secondary",
+                },
+                {
+                  label: "Office",
+                  amount: "₹10,000",
+                  percentage: 15,
+                  color: "bg-accent",
+                },
+                {
+                  label: "Utilities",
+                  amount: "₹7,000",
+                  percentage: 10,
+                  color: "bg-warning",
+                },
               ].map((item, index) => (
                 <motion.div
                   key={item.label}
@@ -125,8 +153,12 @@ const Reports = () => {
                   transition={{ delay: 0.5 + index * 0.1 }}
                 >
                   <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">{item.label}</span>
-                    <span className="font-mono text-muted-foreground">{item.amount}</span>
+                    <span className="font-medium text-foreground">
+                      {item.label}
+                    </span>
+                    <span className="font-mono text-muted-foreground">
+                      {item.amount}
+                    </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
                     <motion.div
@@ -157,6 +189,7 @@ const Reports = () => {
                 title: "Day Book",
                 description: "View all transactions for any day",
                 gradient: "from-primary/10 to-primary/5",
+                onclick: () => navigate("/daybook"),
               },
               {
                 title: "Profit & Loss",
@@ -195,7 +228,9 @@ const Reports = () => {
                 <h3 className="mb-2 font-heading text-lg font-semibold text-foreground">
                   {report.title}
                 </h3>
-                <p className="text-sm text-muted-foreground">{report.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {report.description}
+                </p>
               </motion.button>
             ))}
           </div>
