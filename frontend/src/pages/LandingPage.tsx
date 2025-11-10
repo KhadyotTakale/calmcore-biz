@@ -219,8 +219,8 @@ const LandingPage = () => {
             className="mt-16 rounded-2xl border border-border bg-card p-4 shadow-2xl"
           >
             <img
-              src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1200&h=675&fit=crop"
-              alt="Dashboard Preview"
+              src="https://plus.unsplash.com/premium_photo-1724579095984-c9f71dea7b7d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2069"
+              alt="Indian Business Owner"
               className="w-full rounded-lg object-cover"
               onError={(e) => {
                 e.target.style.display = "none";
@@ -294,12 +294,12 @@ const LandingPage = () => {
             >
               <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
                 <img
-                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop"
-                  alt="Business Analytics"
+                  src="https://plus.unsplash.com/premium_photo-1679811674370-7761190a9db0?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=774"
+                  alt="Indian Shop Management"
                   className="w-full rounded-lg object-cover"
                   onError={(e) => {
                     e.target.src =
-                      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop";
+                      "https://images.unsplash.com/photo-1582649683921-e1c9e20bce39?w=800&h=600&fit=crop";
                   }}
                 />
               </div>
@@ -441,8 +441,8 @@ const LandingPage = () => {
             >
               <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
                 <img
-                  src="https://images.unsplash.com/photo-1556761175-b413da4baf72?w=800&h=600&fit=crop"
-                  alt="Team Collaboration"
+                  src="https://plus.unsplash.com/premium_photo-1679852311419-0c1ce839a4e9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2071"
+                  alt="Indian Team Collaboration"
                   className="w-full rounded-lg object-cover"
                   onError={(e) => {
                     e.target.src =
