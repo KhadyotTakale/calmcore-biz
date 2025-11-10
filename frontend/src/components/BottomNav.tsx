@@ -6,10 +6,13 @@ import {
   Settings,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { useClerk } from "@clerk/clerk-react";
+import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/home" },
@@ -21,7 +24,35 @@ const navItems = [
 
 export const BottomNav = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useClerk();
+  const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+
+      setMobileMenuOpen(false);
+      navigate("/");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast({
+        title: "Sign out failed",
+        description: "There was an error signing you out. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <>
@@ -93,6 +124,23 @@ export const BottomNav = () => {
                     </Link>
                   );
                 })}
+
+                {/* Sign Out Button */}
+                <button
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="w-full"
+                >
+                  <motion.div
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all text-destructive hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <LogOut className="w-5 h-5" strokeWidth={2} />
+                    <span className="font-medium">
+                      {isSigningOut ? "Signing Out..." : "Sign Out"}
+                    </span>
+                  </motion.div>
+                </button>
               </div>
             </motion.div>
           )}

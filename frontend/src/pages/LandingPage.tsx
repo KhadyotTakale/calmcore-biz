@@ -161,7 +161,7 @@ const LandingPage = () => {
                   Pricing
                 </a>
                 <button
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/auth")}
                   className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
                 >
                   Login / Sign Up

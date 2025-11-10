@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useClerk } from "@clerk/clerk-react";
 import {
   User,
   Building2,
@@ -14,10 +15,39 @@ import {
 import { motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { signOut } = useClerk();
+  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+
+      // Navigate to landing page or auth page
+      navigate("/");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast({
+        title: "Sign out failed",
+        description: "There was an error signing you out. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   // Load Razorpay script
   const loadRazorpayScript = () => {
@@ -37,9 +67,12 @@ const Settings = () => {
     const scriptLoaded = await loadRazorpayScript();
 
     if (!scriptLoaded) {
-      alert(
-        "Failed to load Razorpay SDK. Please check your internet connection."
-      );
+      toast({
+        title: "Error",
+        description:
+          "Failed to load payment gateway. Please check your internet connection.",
+        variant: "destructive",
+      });
       setIsProcessing(false);
       return;
     }
@@ -47,16 +80,17 @@ const Settings = () => {
     // Razorpay test mode options
     const options = {
       key: "rzp_test_1DP5mmOlF5G5ag", // Replace with YOUR Razorpay test key
-      amount: 9900, // Amount in paise (₹999 = 99900 paise)
+      amount: 9900, // Amount in paise (₹99 = 9900 paise)
       currency: "INR",
       name: "Elegant Pro",
       description: "Premium Subscription - Monthly",
       image: "https://cdn-icons-png.flaticon.com/512/2942/2942813.png",
       handler: function (response) {
         // Payment successful
-        alert(
-          `Payment Successful!\nPayment ID: ${response.razorpay_payment_id}`
-        );
+        toast({
+          title: "Payment Successful!",
+          description: `Payment ID: ${response.razorpay_payment_id}`,
+        });
         console.log("Payment Response:", response);
         setIsProcessing(false);
         // Here you would typically:
@@ -288,17 +322,20 @@ const Settings = () => {
         </motion.button>
 
         {/* Logout Button */}
-        <motion.button
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-destructive/30 bg-destructive/5 p-4 font-semibold text-destructive transition-all hover:bg-destructive/10"
         >
-          <LogOut className="h-5 w-5" />
-          Sign Out
-        </motion.button>
+          <button
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-destructive bg-destructive p-4 font-semibold text-white shadow-lg transition-all hover:bg-destructive hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <LogOut className="h-5 w-5" />
+            {isSigningOut ? "Signing Out..." : "Sign Out"}
+          </button>
+        </motion.div>
       </div>
     </div>
   );
