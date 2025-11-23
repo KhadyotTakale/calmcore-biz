@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ArrowLeft, Download, Send } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ArrowLeft,
+  Download,
+  Send,
+  AlertCircle,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
 import {
@@ -8,6 +15,7 @@ import {
   updateBookingItem,
   createLead,
   generateFinancialYearEstimateNumber,
+  authManager,
 } from "@/services/api";
 
 const GenerateEstimate = () => {
@@ -23,7 +31,7 @@ const GenerateEstimate = () => {
   const [items, setItems] = useState([
     {
       id: 1,
-      catalogItemId: null, // This will store the actual item ID from catalog
+      catalogItemId: null,
       description: "",
       quantity: 1,
       rate: 0,
@@ -33,7 +41,7 @@ const GenerateEstimate = () => {
   ]);
 
   const [estimateDetails, setEstimateDetails] = useState({
-    estimateNumber: "Loading...", // Temporary placeholder
+    estimateNumber: "Loading...",
     date: new Date().toISOString().split("T")[0],
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       .toISOString()
@@ -47,7 +55,10 @@ const GenerateEstimate = () => {
   const [loading, setLoading] = useState(false);
   const [bookingSlug, setBookingSlug] = useState(null);
   const [estimateCreated, setEstimateCreated] = useState(false);
-  // Add useEffect to fetch estimate number on component mount
+  const [estimateNumberLoading, setEstimateNumberLoading] = useState(true);
+  const [validationErrors, setValidationErrors] = useState([]);
+
+  // Generate estimate number on mount
   useEffect(() => {
     const initEstimateNumber = async () => {
       try {
@@ -56,25 +67,26 @@ const GenerateEstimate = () => {
           ...prev,
           estimateNumber,
         }));
+        setEstimateNumberLoading(false);
       } catch (error) {
         console.error("Failed to generate estimate number:", error);
-        // Fallback to timestamp-based
         setEstimateDetails((prev) => ({
           ...prev,
           estimateNumber: `EST-${Date.now().toString().slice(-6)}`,
         }));
+        setEstimateNumberLoading(false);
       }
     };
 
     initEstimateNumber();
-  }, []); // Run once on mount
+  }, []);
 
   const addItem = () => {
     setItems([
       ...items,
       {
         id: Date.now(),
-        catalogItemId: null, // Add this field
+        catalogItemId: null,
         description: "",
         quantity: 1,
         rate: 0,
@@ -111,7 +123,7 @@ const GenerateEstimate = () => {
         if (item.id === itemId) {
           return {
             ...item,
-            catalogItemId: selectedItem.id, // Store the real catalog item ID
+            catalogItemId: selectedItem.id,
             description: selectedItem.description,
             quantity: selectedItem.quantity,
             rate: selectedItem.rate,
@@ -131,98 +143,168 @@ const GenerateEstimate = () => {
   const sgstAmount = (taxableAmount * sgst) / 100;
   const total = taxableAmount + cgstAmount + sgstAmount;
 
+  // ============================================================================
+  // VALIDATION FUNCTION - Returns errors array
+  // ============================================================================
+  const validateEstimateData = () => {
+    const errors = [];
+
+    // 1. Customer Name (Required)
+    const name = customerInfo.name?.trim();
+    if (!name || name.length === 0) {
+      errors.push("Customer name is required");
+    }
+
+    // 2. Phone (Required + Basic validation)
+    const phone = customerInfo.phone?.trim().replace(/\D/g, "");
+    if (!phone || phone.length === 0) {
+      errors.push("Customer phone number is required");
+    } else if (phone.length < 10) {
+      errors.push("Phone number must be at least 10 digits");
+    }
+
+    // 3. Email (Optional but validate format if provided)
+    const email = customerInfo.email?.trim();
+    if (
+      email &&
+      email.length > 0 &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+      errors.push("Please enter a valid email address");
+    }
+
+    // 4. Estimate Number
+    if (
+      estimateDetails.estimateNumber === "Loading..." ||
+      !estimateDetails.estimateNumber
+    ) {
+      errors.push("Estimate number is still loading. Please wait...");
+    }
+
+    // 5. Items validation
+    const validItems = items.filter(
+      (item) =>
+        item.catalogItemId &&
+        typeof item.catalogItemId === "number" &&
+        item.description?.trim() &&
+        item.rate > 0 &&
+        item.quantity > 0
+    );
+
+    if (validItems.length === 0) {
+      errors.push("Please select at least one valid item from the catalog");
+    }
+
+    return { isValid: errors.length === 0, errors, validItems };
+  };
+
+  // ============================================================================
+  // ENHANCED CREATE ESTIMATE - WITH VALIDATION & ERROR HANDLING
+  // ============================================================================
   const handleCreateEstimate = async () => {
+    // Clear previous errors
+    setValidationErrors([]);
+
+    // Validate before proceeding
+    const validation = validateEstimateData();
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Validate required fields
-      const name = customerInfo.name?.trim() || "";
-      const phone = customerInfo.phone?.trim() || "";
+      // Prepare clean customer data (trim all values)
+      const name = customerInfo.name.trim();
+      const phone = customerInfo.phone.trim();
+      const email = customerInfo.email?.trim() || "";
+      const address = customerInfo.address?.trim() || "";
+      const state = customerInfo.state?.trim() || "";
+      const gstin = customerInfo.gstin?.trim() || "";
 
-      if (!name) {
-        alert("Please enter customer name");
-        setLoading(false);
-        return;
-      }
+      const customerData = {
+        name,
+        email,
+        phone,
+        address,
+        state,
+        gstin,
+      };
 
-      if (!phone) {
-        alert("Please enter customer phone number");
-        setLoading(false);
-        return;
-      }
-
-      const validItems = items.filter(
-        (item) => item.description && item.rate > 0 && item.catalogItemId
-      );
-
-      if (validItems.length === 0) {
-        throw new Error("Please select at least one item from the catalog");
-      }
+      console.log("📋 Customer data to save:", customerData);
 
       // Create booking
       const booking = await createBooking();
       console.log("✓ Booking created:", booking.id);
 
-      // Build customer data object with only non-empty values
-      const customerData = {
-        name: name,
-        email: customerInfo.email?.trim() || "",
-        phone: phone,
-        address: customerInfo.address?.trim() || "",
-        state: customerInfo.state?.trim() || "",
-        gstin: customerInfo.gstin?.trim() || "",
-      };
+      // Add items sequentially with error tracking
+      const itemErrors = [];
 
-      console.log("📋 Customer data to save:", customerData);
+      for (let i = 0; i < validation.validItems.length; i++) {
+        const item = validation.validItems[i];
 
-      // Add items sequentially and update each one immediately
-      // This ensures the first item gets the full customer data
-      for (let i = 0; i < validItems.length; i++) {
-        const item = validItems[i];
+        try {
+          // Add item to booking
+          await addBookingItem(booking.id, item.catalogItemId);
+          console.log(
+            `✓ Added item ${i + 1}/${validation.validItems.length}: ${
+              item.description
+            }`
+          );
 
-        // Add item to booking
-        await addBookingItem(booking.id, item.catalogItemId);
-        console.log(
-          `✓ Added item ${i + 1}/${validItems.length}: ${item.description}`
-        );
-
-        // Update the item with its data
-        if (i === 0) {
-          // FIRST item gets ALL the estimate data
-          await updateBookingItem(booking.id, item.catalogItemId, {
-            quantity: item.quantity,
-            price: item.rate.toString(),
-            booking_items_info: {
-              special_instructions: estimateDetails.notes?.trim() || "",
-              image_url: item.imageUrl || "",
-              customer_info: customerData,
-              estimate_details: {
-                estimateNumber: estimateDetails.estimateNumber,
-                date: estimateDetails.date,
-                validUntil: estimateDetails.validUntil,
+          // Update the item with its data
+          if (i === 0) {
+            // FIRST item gets ALL the estimate data
+            await updateBookingItem(booking.id, item.catalogItemId, {
+              quantity: item.quantity,
+              price: item.rate.toString(),
+              booking_items_info: {
+                document_type: "estimate",
+                special_instructions: estimateDetails.notes?.trim() || "",
+                image_url: item.imageUrl || "",
+                customer_info: customerData,
+                estimate_details: {
+                  estimateNumber: estimateDetails.estimateNumber,
+                  date: estimateDetails.date,
+                  validUntil: estimateDetails.validUntil,
+                },
+                tax_info: {
+                  discount: discount,
+                  cgst: cgst,
+                  sgst: sgst,
+                },
               },
-              tax_info: {
-                discount: discount,
-                cgst: cgst,
-                sgst: sgst,
+            });
+            console.log("✓ First item updated with COMPLETE estimate data");
+          } else {
+            // Remaining items get basic data only
+            await updateBookingItem(booking.id, item.catalogItemId, {
+              quantity: item.quantity,
+              price: item.rate.toString(),
+              booking_items_info: {
+                image_url: item.imageUrl || "",
               },
-            },
-          });
-          console.log("✓ First item updated with COMPLETE estimate data");
-        } else {
-          // Remaining items get basic data only
-          await updateBookingItem(booking.id, item.catalogItemId, {
-            quantity: item.quantity,
-            price: item.rate.toString(),
-            booking_items_info: {
-              image_url: item.imageUrl || "",
-            },
-          });
-          console.log(`✓ Item ${i + 1} updated with basic data`);
+            });
+            console.log(`✓ Item ${i + 1} updated with basic data`);
+          }
+        } catch (itemError) {
+          console.error(`❌ Failed to process item ${i + 1}:`, itemError);
+          itemErrors.push(`Item "${item.description}": ${itemError.message}`);
         }
       }
 
-      // Create lead - only if email is provided
+      // Check if any items failed
+      if (itemErrors.length > 0) {
+        throw new Error(
+          `Failed to add ${itemErrors.length} item(s):\n${itemErrors.join(
+            "\n"
+          )}`
+        );
+      }
+
+      // Create lead - only if email is provided (non-critical)
       if (customerData.email) {
         try {
           await createLead({
@@ -264,21 +346,23 @@ const GenerateEstimate = () => {
       alert(
         `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
       );
-      setLoading(false);
     } catch (error) {
       console.error("❌ Error creating estimate:", error);
-      alert("Failed to create estimate: " + error.message);
+      const errorMessage = error.message || "An unexpected error occurred";
+      alert("Failed to create estimate: " + errorMessage);
+      setValidationErrors([errorMessage]);
+    } finally {
       setLoading(false);
     }
   };
 
-  // Button 2: Download PDF (Simple - just opens link)
+  // Button 2: Download PDF
   const handleDownload = () => {
     if (!bookingSlug) return;
     window.open(`/estimate-preview?id=${bookingSlug}`, "_blank");
   };
 
-  // Button 3: Send to Customer (Simple - just opens WhatsApp)
+  // Button 3: Send to Customer
   const handleSendToCustomer = () => {
     if (!bookingSlug) return;
 
@@ -326,6 +410,32 @@ const GenerateEstimate = () => {
           </div>
         </motion.div>
 
+        {/* Validation Errors Alert */}
+        {validationErrors.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-destructive mb-2">
+                  Please fix the following errors:
+                </h3>
+                <ul className="space-y-1 text-sm text-destructive/90">
+                  {validationErrors.map((error, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span>•</span>
+                      <span>{error}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Form */}
           <div className="space-y-6 lg:col-span-2">
@@ -344,17 +454,25 @@ const GenerateEstimate = () => {
                   <label className="mb-2 block text-sm font-medium text-foreground">
                     Estimate Number
                   </label>
-                  <input
-                    type="text"
-                    value={estimateDetails.estimateNumber}
-                    onChange={(e) =>
-                      setEstimateDetails({
-                        ...estimateDetails,
-                        estimateNumber: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={estimateDetails.estimateNumber}
+                      onChange={(e) =>
+                        setEstimateDetails({
+                          ...estimateDetails,
+                          estimateNumber: e.target.value,
+                        })
+                      }
+                      disabled={estimateNumberLoading}
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    />
+                    {estimateNumberLoading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
@@ -404,7 +522,7 @@ const GenerateEstimate = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    Customer Name *
+                    Customer Name <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
@@ -413,6 +531,23 @@ const GenerateEstimate = () => {
                       setCustomerInfo({ ...customerInfo, name: e.target.value })
                     }
                     placeholder="Enter customer name"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    Phone <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerInfo.phone}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        phone: e.target.value,
+                      })
+                    }
+                    placeholder="XXXXXXXXXX"
                     className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -430,23 +565,6 @@ const GenerateEstimate = () => {
                       })
                     }
                     placeholder="customer@example.com"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerInfo.phone}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        phone: e.target.value,
-                      })
-                    }
-                    placeholder="XXXXXXXXXX"
                     className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -580,20 +698,6 @@ const GenerateEstimate = () => {
                           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
-                      {/* <div className="md:col-span-2">
-                        <label className="mb-2 block text-sm font-medium text-foreground">
-                          HSN Code
-                        </label>
-                        <input
-                          type="text"
-                          value={item.hsnCode}
-                          onChange={(e) =>
-                            updateItem(item.id, "hsnCode", e.target.value)
-                          }
-                          placeholder="HSN"
-                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        />
-                      </div> */}
                       <div className="md:col-span-3">
                         <label className="mb-2 block text-sm font-medium text-foreground">
                           Quantity
@@ -795,13 +899,18 @@ const GenerateEstimate = () => {
                 {/* Primary Action: Create Estimate */}
                 <button
                   onClick={handleCreateEstimate}
-                  disabled={loading}
+                  disabled={loading || estimateNumberLoading}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                       Creating...
+                    </>
+                  ) : estimateNumberLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      Loading...
                     </>
                   ) : estimateCreated ? (
                     <>Create New Version</>

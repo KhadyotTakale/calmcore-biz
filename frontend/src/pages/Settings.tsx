@@ -251,16 +251,19 @@ const Settings = () => {
               <div className="divide-y divide-border">
                 {section.items.map((item, itemIndex) => {
                   const Icon = item.icon;
+                  const Component = item.toggle ? motion.div : motion.button;
                   return (
-                    <motion.button
+                    <Component
                       key={item.label}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{
                         delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05,
                       }}
-                      onClick={item.onClick}
-                      className="flex w-full items-center gap-4 p-4 transition-colors hover:bg-muted/50"
+                      onClick={item.toggle ? undefined : item.onClick}
+                      className={`flex w-full items-center gap-4 p-4 transition-colors hover:bg-muted/50 ${
+                        !item.toggle ? "cursor-pointer" : ""
+                      }`}
                     >
                       <div className="rounded-xl bg-primary/10 p-3">
                         <Icon className="h-5 w-5 text-primary" />
@@ -278,7 +281,7 @@ const Settings = () => {
                       ) : (
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       )}
-                    </motion.button>
+                    </Component>
                   );
                 })}
               </div>

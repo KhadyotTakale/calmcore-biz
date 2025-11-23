@@ -1,20 +1,13 @@
 import React from "react";
-import { SignIn, SignUp, useUser } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { SignIn, SignUp } from "@clerk/clerk-react";
 import { motion } from "framer-motion";
 import { FileText, TrendingUp, Shield, Zap } from "lucide-react";
 
 const Auth = () => {
-  const { isSignedIn } = useUser();
-  const navigate = useNavigate();
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
 
-  // Redirect if already signed in
-  React.useEffect(() => {
-    if (isSignedIn) {
-      navigate("/home");
-    }
-  }, [isSignedIn, navigate]);
+  // REMOVED: The useEffect that was redirecting to /home
+  // AuthStateManager in App.tsx now handles all post-auth routing
 
   const features = [
     {
@@ -161,6 +154,10 @@ const Auth = () => {
                 <div className="clerk-auth-container">
                   {mode === "signin" ? (
                     <SignIn
+                      routing="path"
+                      path="/auth"
+                      signUpUrl="/auth"
+                      afterSignInUrl="/home"
                       appearance={{
                         elements: {
                           rootBox: "w-full",
@@ -192,6 +189,10 @@ const Auth = () => {
                     />
                   ) : (
                     <SignUp
+                      routing="path"
+                      path="/auth"
+                      signInUrl="/auth"
+                      afterSignUpUrl="/home"
                       appearance={{
                         elements: {
                           rootBox: "w-full",

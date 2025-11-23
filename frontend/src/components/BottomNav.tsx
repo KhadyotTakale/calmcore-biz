@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/home" },
-  { icon: Receipt, label: "Transactions", path: "/transactions" },
+  { icon: Receipt, label: "Estimates", path: "/estimates" },
   { icon: FileText, label: "Invoices", path: "/invoices" },
   { icon: BarChart3, label: "Reports", path: "/reports" },
   { icon: Settings, label: "Settings", path: "/settings" },

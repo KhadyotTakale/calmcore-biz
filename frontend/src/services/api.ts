@@ -10,65 +10,77 @@ const BASE_HEADERS = {
   "Content-Type": "application/json",
 } as const;
 
+// 🔍 DEBUG: Verify environment variables are loaded correctly
+console.log("=== API CONFIGURATION DEBUG ===");
+console.log("BASE_URL:", BASE_URL);
+console.log("ITEMS_BOOKINGS_URL:", ITEMS_BOOKINGS_URL);
+console.log("VITE_ELEGANT_DOMAIN:", import.meta.env.VITE_ELEGANT_DOMAIN);
+console.log("VITE_ELEGANT_AUTH exists:", !!import.meta.env.VITE_ELEGANT_AUTH);
+console.log("BASE_HEADERS:", JSON.stringify(BASE_HEADERS, null, 2));
+console.log("================================");
+
 // ============================================================================
 // AUTHENTICATION MANAGER
 // ============================================================================
 
 class AuthManager {
-  private token: string | null = null;
-  private tokenExpiry: number = 0;
-  private initPromise: Promise<void> | null = null;
+  private customerAuthToken: string | null = null;
+  private clerkUserId: string | null = null;
 
-  async getToken(): Promise<string> {
-    if (this.token && Date.now() < this.tokenExpiry) {
-      return this.token;
-    }
-    await this.refreshToken();
-    return this.token!;
+  constructor() {
+    this.restoreFromStorage();
   }
 
-  private async refreshToken(): Promise<void> {
+  private restoreFromStorage(): void {
     try {
-      const response = await fetch(`${BASE_URL}/auth/me`, {
-        headers: BASE_HEADERS,
-      });
+      const storedToken = localStorage.getItem("elegant_customer_token");
+      const storedUserId = localStorage.getItem("elegant_clerk_userid");
 
-      if (!response.ok) {
-        throw new Error(
-          `Auth failed: ${response.status} ${response.statusText}`
-        );
+      if (storedToken) {
+        this.customerAuthToken = storedToken;
+        console.log("[AuthManager] ✅ Token restored from localStorage");
       }
 
-      const data = await response.json();
-      this.token = data.authToken || data.token || data.auth_token;
-
-      if (!this.token) {
-        console.error("[Auth] Response:", data);
-        throw new Error("No token in auth response");
+      if (storedUserId) {
+        this.clerkUserId = storedUserId;
+        console.log("[AuthManager] ✅ Clerk user ID restored:", storedUserId);
       }
-
-      // Token valid for 1 hour
-      this.tokenExpiry = Date.now() + 60 * 60 * 1000;
     } catch (error) {
-      console.error("[Auth] Failed to get token:", error);
-      throw error;
+      console.error(
+        "[AuthManager] ❌ Failed to restore from localStorage:",
+        error
+      );
     }
   }
 
-  async initialize(): Promise<void> {
-    if (this.initPromise) {
-      return this.initPromise;
-    }
+  setClerkUserId(userId: string): void {
+    this.clerkUserId = userId;
+    localStorage.setItem("elegant_clerk_userid", userId);
+    console.log("[AuthManager] 💾 Clerk user ID saved:", userId);
+  }
 
-    this.initPromise = this.refreshToken().then(() => {});
+  getClerkUserId(): string | null {
+    return this.clerkUserId;
+  }
 
-    return this.initPromise;
+  setCustomerAuthToken(token: string): void {
+    this.customerAuthToken = token;
+    localStorage.setItem("elegant_customer_token", token);
+    console.log("[AuthManager] 💾 Customer auth token saved");
+    console.log("[AuthManager] Token preview:", token.substring(0, 50) + "...");
+  }
+
+  getCustomerAuthToken(): string | null {
+    return this.customerAuthToken;
   }
 
   clearToken(): void {
-    this.token = null;
-    this.tokenExpiry = 0;
-    this.initPromise = null;
+    this.customerAuthToken = null;
+    this.clerkUserId = null;
+    localStorage.removeItem("elegant_customer_token");
+    localStorage.removeItem("elegant_clerk_userid");
+    localStorage.removeItem("shopId");
+    console.log("[AuthManager] 🗑️ All tokens cleared");
   }
 }
 
@@ -116,10 +128,46 @@ export interface Customer {
   id: string;
   created_at: number;
   elegant_user_id: string;
-  Full_name: string;
-  email: string;
-  cust_info?: any;
+  external_dashbord_token?: string;
+  external_shopping_cart?: string;
+  external_settings?: string;
+  external_token?: string;
   customer_number: number;
+  Full_name: string;
+  cust_info?: any;
+  is_online_now?: boolean;
+  is_online_timestamp?: number;
+  is_blocked_or_denied?: boolean;
+  email: string;
+  authToken?: string; // ADD THIS - it's returned in the response
+  _shops?: {
+    id: string;
+    created_at: number;
+    name: string;
+    description: string;
+    logo: string;
+    custom_domain: string;
+    Is_visible: boolean;
+    slug: string;
+    allow_affiliate: boolean;
+    testmode: boolean;
+  };
+  _customer_roles_of_customers_of_shops?: {
+    // ADD THIS
+    id: string;
+    created_at: number;
+    customers_id: string;
+    shops_id: string;
+    role: string | null;
+    block_deny_access: boolean;
+    block_deny_reason: string | null;
+    status: string;
+    referral: string;
+    is_onboarded: boolean;
+    cust_role_info: any;
+    is_manager: boolean;
+    is_owner: boolean; // THIS IS THE KEY FIELD
+  };
 }
 
 export interface Booking {
@@ -180,15 +228,6 @@ export interface Shop {
   testmode: boolean;
 }
 
-export interface CreateShopRequest {
-  name: string;
-  description: string;
-  logo: string;
-  custom_domain: string;
-  Is_visible: number; // 0 or 1
-  slug: string;
-}
-
 export interface UpdateShopRequest {
   name?: string;
   description?: string;
@@ -196,6 +235,55 @@ export interface UpdateShopRequest {
   custom_domain?: string;
   Is_visible?: number; // 0 or 1
   slug?: string;
+}
+
+export interface EstimateMetadata {
+  estimateNumber: string;
+  date: string;
+  validUntil: string;
+  notes: string;
+  customerInfo: {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+  };
+  items: Array<{
+    id: number;
+    description: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+    imageUrl?: string | null;
+  }>;
+  discount: number;
+  tax: number;
+  totals: {
+    subtotal: number;
+    discountAmount: number;
+    taxAmount: number;
+    total: number;
+  };
+  bookingId?: number;
+  savedAt: string;
+}
+
+export interface CreateCustomerRequest {
+  elegant_user_id: string;
+  Full_name: string;
+  email?: string;
+  cust_info?: any;
+}
+
+export interface ShopFranchisor {
+  id: number;
+  created_at: number;
+  shops_id: string;
+  franchise_id: string;
+  managers_id: any[];
+  owner_customers_id: string;
+  _franchisor: Shop;
+  _franchise: Shop;
 }
 
 // ============================================================================
@@ -213,38 +301,84 @@ export class ApiError extends Error {
   }
 }
 
+// post shop
+
+export interface CreateShopRequest {
+  name: string;
+  description: string;
+  logo: string;
+  custom_domain: string;
+  Is_visible: number; // 0 or 1
+  slug: string; // Can be empty string
+}
+
 // ============================================================================
 // CORE FETCH WRAPPER
 // ============================================================================
-
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
-  useItemsBookingsUrl: boolean = false
+  useItemsBookingsUrl: boolean = false,
+  useCustomerAuth: boolean = false,
+  skipAutoLogout: boolean = false
 ): Promise<T> {
   const baseUrl = useItemsBookingsUrl ? ITEMS_BOOKINGS_URL : BASE_URL;
-  const token = await authManager.getToken();
   const fullUrl = `${baseUrl}${endpoint}`;
 
+  let headers = { ...BASE_HEADERS };
+
+  const clerkUserId = authManager.getClerkUserId();
+  if (clerkUserId) {
+    headers = { ...headers, "x-elegant-userid": clerkUserId } as any;
+  }
+
+  if (useCustomerAuth) {
+    const customerToken = authManager.getCustomerAuthToken();
+    if (customerToken) {
+      headers = { ...headers, Authorization: `Bearer ${customerToken}` } as any;
+      console.log("[API] Using customer auth token for:", endpoint);
+    } else {
+      console.warn("[API] ⚠️ No customer token available for:", endpoint);
+    }
+  }
+
   try {
+    console.log("[API] 📤 Request:", {
+      url: fullUrl,
+      method: options.method || "GET",
+      hasAuth: !!headers.Authorization,
+      hasUserId: !!headers["x-elegant-userid"],
+      body: options.body ? JSON.parse(options.body as string) : null, // ADD THIS
+    });
+
     const response = await fetch(fullUrl, {
       ...options,
       headers: {
-        ...BASE_HEADERS,
-        Authorization: `Bearer ${token}`,
+        ...headers,
         ...options.headers,
       },
     });
 
+    console.log(
+      "[API] 📥 Response status:",
+      response.status,
+      response.statusText
+    ); // ADD THIS
+
     const responseText = await response.text();
 
-    // Check if response is HTML (error page)
+    console.log("[API] 📥 Response text length:", responseText.length); // ADD THIS
+    console.log(
+      "[API] 📥 Response text preview:",
+      responseText.substring(0, 500)
+    ); // ADD THIS
+
     if (
       responseText.trim().startsWith("<!DOCTYPE") ||
       responseText.trim().startsWith("<html")
     ) {
       console.error(
-        "[API] Received HTML instead of JSON:",
+        "[API] ❌ Received HTML instead of JSON:",
         responseText.substring(0, 200)
       );
       throw new Error(
@@ -259,24 +393,46 @@ async function apiFetch<T>(
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch {
-        // Use default error message
+        errorMessage = responseText || errorMessage;
       }
 
-      // If unauthorized, try refreshing token once
-      if (response.status === 401) {
-        console.warn("[API] 401 Unauthorized - Token may be expired");
-        authManager.clearToken();
-        await authManager.initialize();
+      console.error("[API] ❌ Error response:", {
+        status: response.status,
+        endpoint,
+        message: errorMessage,
+      });
+
+      if (response.status === 401 && !skipAutoLogout) {
+        console.warn(
+          "[API] 🔒 401 Unauthorized - Token expired, logging out..."
+        );
+
+        await customerSignout();
+        window.location.href = "/auth";
+
+        throw new ApiError(
+          response.status,
+          response.statusText,
+          "Session expired. Please login again."
+        );
       }
 
       throw new ApiError(response.status, response.statusText, errorMessage);
     }
 
-    // Parse JSON
+    // Handle empty response
+    if (!responseText || responseText.trim() === "") {
+      console.warn("[API] ⚠️ Empty response from:", endpoint);
+      return null as T; // ADD THIS
+    }
+
     try {
-      return JSON.parse(responseText);
+      const jsonData = JSON.parse(responseText);
+      console.log("[API] ✅ Success:", endpoint);
+      console.log("[API] 📦 Parsed JSON:", jsonData); // ADD THIS
+      return jsonData;
     } catch (parseError) {
-      console.error("[API] JSON parse error:", parseError);
+      console.error("[API] ❌ JSON parse error:", parseError);
       console.error("[API] Response text:", responseText);
       throw new Error(`Invalid JSON response from ${endpoint}`);
     }
@@ -285,7 +441,6 @@ async function apiFetch<T>(
       throw error;
     }
 
-    // Network error
     if (error instanceof TypeError && error.message.includes("fetch")) {
       throw new Error(
         `Cannot connect to API at ${baseUrl}. ` +
@@ -298,14 +453,181 @@ async function apiFetch<T>(
 }
 
 // ============================================================================
+// CUSTOMER INITIALIZATION
+// ============================================================================
+export async function initializeCustomer(
+  clerkUserId: string,
+  email: string,
+  fullName: string
+): Promise<{ customer: Customer; authToken: string; hasOwnShop: boolean }> {
+  try {
+    authManager.setClerkUserId(clerkUserId);
+
+    console.log(
+      "[Customer] 📝 Step 1: Getting temporary auth token from /auth/me"
+    );
+
+    const authMeResponse = await fetch(`${BASE_URL}/auth/me`, {
+      headers: BASE_HEADERS,
+    });
+
+    if (!authMeResponse.ok) {
+      const errorText = await authMeResponse.text();
+      console.error("[Customer] ❌ /auth/me failed:", errorText);
+      throw new Error(`Failed to get auth token: ${authMeResponse.status}`);
+    }
+
+    const authData = await authMeResponse.json();
+    const tempAuthToken = authData.authToken;
+
+    console.log("[Customer] ✅ Got temporary token (parent shop access)");
+
+    if (!tempAuthToken) {
+      throw new Error("No authToken returned from /auth/me");
+    }
+
+    const headers = {
+      ...BASE_HEADERS,
+      "x-elegant-userid": clerkUserId,
+      Authorization: `Bearer ${tempAuthToken}`,
+    };
+
+    console.log("[Customer] 📝 Step 2: Creating/updating customer");
+
+    const postResponse = await fetch(`${BASE_URL}/customer`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ email, Full_name: fullName }),
+    });
+
+    if (!postResponse.ok) {
+      const errorText = await postResponse.text();
+      console.error("[Customer] ❌ POST /customer failed:", errorText);
+      throw new Error(`POST /customer failed: ${postResponse.status}`);
+    }
+
+    console.log("[Customer] ✅ Customer created/updated");
+
+    console.log("[Customer] 📝 Step 3: Getting customer data");
+
+    const getResponse = await fetch(`${BASE_URL}/customer`, {
+      headers,
+    });
+
+    if (!getResponse.ok) {
+      const errorText = await getResponse.text();
+      console.error("[Customer] ❌ GET /customer failed:", errorText);
+      throw new Error(`GET /customer failed: ${getResponse.status}`);
+    }
+
+    const data = await getResponse.json();
+
+    console.log("[Customer] ✅ Got customer data");
+    console.log("[Customer] Response authToken:", {
+      exists: !!data.authToken,
+      isEmpty: data.authToken === "",
+      length: data.authToken?.length || 0,
+    });
+
+    // CRITICAL: Check if authToken is a NON-EMPTY string
+    // Empty string "" means user exists but doesn't have their own shop
+    const hasOwnShop = !!(data.authToken && data.authToken.trim() !== "");
+
+    if (hasOwnShop) {
+      // User has their OWN shop - save the shop-specific token
+      authManager.setCustomerAuthToken(data.authToken);
+      console.log(
+        "[Customer] ✅ User has own shop - SHOP-SPECIFIC token saved"
+      );
+      console.log("[Customer] This token gives access to user's OWN data");
+
+      // Save shop ID if available
+      if (data.customer?._shops?.id) {
+        localStorage.setItem("shopId", data.customer._shops.id);
+        console.log(
+          "[Customer] ✅ User's shop ID saved:",
+          data.customer._shops.id
+        );
+      }
+    } else {
+      // User doesn't have their own shop yet
+      console.log(
+        "[Customer] ℹ️  User doesn't have own shop (authToken is empty)"
+      );
+      console.log("[Customer] Saving TEMPORARY token for shop creation only");
+
+      // Save temp token so user can access /company-info and create shop
+      authManager.setCustomerAuthToken(tempAuthToken);
+      console.log("[Customer] ⚠️  Using PARENT SHOP token temporarily");
+      console.log("[Customer] User MUST create shop to get their own token");
+    }
+
+    return {
+      ...data,
+      hasOwnShop,
+    };
+  } catch (error) {
+    console.error("[Customer] ❌ Initialization failed:", error);
+    throw error;
+  }
+}
+
+export async function refreshCustomerToken(): Promise<boolean> {
+  try {
+    const clerkUserId = authManager.getClerkUserId();
+
+    if (!clerkUserId) {
+      console.error("[API] Cannot refresh token - no Clerk user ID");
+      return false;
+    }
+
+    console.log("[API] 🔄 Refreshing customer token...");
+
+    // Get fresh token by calling /customer endpoint
+    const customerData = await getCustomer();
+
+    console.log("[API] Refresh response:", {
+      hasAuthToken: !!customerData.authToken,
+      isEmpty: customerData.authToken === "",
+      hasShop: !!customerData._shops,
+      shopId: customerData._shops?.id,
+      isOwner: customerData._customer_roles_of_customers_of_shops?.is_owner,
+    });
+
+    // Check if user now has a valid authToken (non-empty string)
+    if (customerData.authToken && customerData.authToken.trim() !== "") {
+      // Save the new token
+      authManager.setCustomerAuthToken(customerData.authToken);
+      console.log("[API] ✅ Token refreshed successfully");
+
+      // Also update shop ID if available
+      if (customerData._shops?.id) {
+        localStorage.setItem("shopId", customerData._shops.id);
+      }
+
+      return true;
+    } else {
+      console.warn(
+        "[API] ⚠️ Refresh returned empty token - ownership may not be propagated yet"
+      );
+      return false;
+    }
+  } catch (error) {
+    console.error("[API] ❌ Token refresh failed:", error);
+    return false;
+  }
+}
+
+// ============================================================================
 // ITEMS API - Uses ITEMS_BOOKINGS_URL
 // ============================================================================
 
 export async function getAllItems(): Promise<PaginatedResponse<Item>> {
   return apiFetch<PaginatedResponse<Item>>(
-    "/items_all?item_type=Product", // Capital P to match your data
+    "/items_all?item_type=Product",
     {},
-    true
+    true,
+    true // Use customer auth
   );
 }
 
@@ -317,7 +639,8 @@ export async function searchItems(
   return apiFetch<PaginatedResponse<Item>>(
     `/items_all?item_type=Product&external=${JSON.stringify({ search, page })}`,
     {},
-    true
+    true,
+    true // Use customer auth
   );
 }
 
@@ -328,15 +651,17 @@ export async function getItems(
   return apiFetch<PaginatedResponse<Item>>(
     `/items_all?item_type=Product&external=${JSON.stringify({ page })}`,
     {},
-    true
+    true,
+    true // Use customer auth
   );
 }
+
 // ============================================================================
 // CUSTOMERS API - Uses BASE_URL
 // ============================================================================
 
 export async function getCustomer(): Promise<Customer> {
-  return apiFetch<Customer>("/customer", {}, false);
+  return apiFetch<Customer>("/customer", {}, false, true); // Use customer auth
 }
 
 export async function createCustomer(
@@ -348,12 +673,13 @@ export async function createCustomer(
       method: "POST",
       body: JSON.stringify(data),
     },
-    false
+    false,
+    true // Use customer auth
   );
 }
 
 export async function getCustomerById(customerId: string): Promise<Customer> {
-  return apiFetch<Customer>(`/customer/${customerId}`, {}, false);
+  return apiFetch<Customer>(`/customer/${customerId}`, {}, false, true);
 }
 
 export async function updateCustomer(
@@ -366,7 +692,8 @@ export async function updateCustomer(
       method: "PUT",
       body: JSON.stringify(data),
     },
-    false
+    false,
+    true // Use customer auth
   );
 }
 
@@ -380,8 +707,43 @@ export async function linkCustomerToBooking(
       method: "PUT",
       body: JSON.stringify({ customers_id: customerId }),
     },
-    false
+    false,
+    true // Use customer auth
   );
+}
+
+// ============================================================================
+// CUSTOMER SIGNOUT API
+// ============================================================================
+
+export async function customerSignout(): Promise<void> {
+  try {
+    const clerkUserId = authManager.getClerkUserId();
+    const token = authManager.getCustomerAuthToken();
+
+    if (!clerkUserId || !token) {
+      console.log("[API] No auth data to sign out");
+      return;
+    }
+
+    console.log("[API] 📤 Signing out customer");
+
+    await fetch(`${BASE_URL}/customer_signout`, {
+      method: "POST",
+      headers: {
+        ...BASE_HEADERS,
+        "x-elegant-userid": clerkUserId,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    console.log("[API] ✅ Signed out successfully");
+  } catch (error) {
+    console.error("[API] ❌ Signout failed:", error);
+  } finally {
+    // Always clear local tokens
+    authManager.clearToken();
+  }
 }
 
 // ============================================================================
@@ -396,13 +758,14 @@ export async function getBookings(
   return apiFetch<PaginatedResponse<Booking>>(
     `/bookings?page=${page}&perPage=${perPage}`,
     {},
-    true
+    true,
+    true // Use customer auth
   );
 }
 
 // Get single booking - Uses BASE_URL
 export async function getBooking(bookingId: number): Promise<Booking> {
-  return apiFetch<Booking>(`/booking/${bookingId}`, {}, false);
+  return apiFetch<Booking>(`/booking/${bookingId}`, {}, false, true);
 }
 
 // Create booking - Uses BASE_URL
@@ -413,7 +776,8 @@ export async function createBooking(): Promise<CreateBookingResponse> {
       method: "POST",
       body: JSON.stringify({}),
     },
-    false
+    false,
+    true // Use customer auth
   );
 }
 
@@ -428,7 +792,8 @@ export async function addBookingItem(
       method: "POST",
       body: JSON.stringify({}),
     },
-    false
+    false,
+    true // Use customer auth
   );
 }
 
@@ -443,24 +808,9 @@ export async function createCustomerInvite(data: {
       method: "POST",
       body: JSON.stringify(data),
     },
-    false
+    false,
+    true // Use customer auth
   );
-}
-
-// ============================================================================
-// AUTH API (Public - no token needed)
-// ============================================================================
-
-export async function getAuthMe(): Promise<any> {
-  const response = await fetch(`${BASE_URL}/auth/me`, {
-    headers: BASE_HEADERS,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Auth failed: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 // Update booking item with quantity, price, and special instructions
@@ -479,7 +829,8 @@ export async function updateBookingItem(
       method: "PATCH",
       body: JSON.stringify(data),
     },
-    false
+    false,
+    true // Use customer auth
   );
 }
 
@@ -491,13 +842,117 @@ export async function createLead(leadPayload: any): Promise<any> {
       method: "POST",
       body: JSON.stringify({ payload: leadPayload }),
     },
-    false
+    false,
+    true // Use customer auth
   );
 }
 
 // Get booking items details (if needed separately)
 export async function getBookingItems(bookingId: number): Promise<any> {
-  return apiFetch(`/booking/${bookingId}/items`, {}, false);
+  return apiFetch(`/booking/${bookingId}/items`, {}, false, true);
+}
+
+export async function getBookingBySlug(
+  bookingSlug: string
+): Promise<Booking[]> {
+  return apiFetch<Booking[]>(
+    `/booking_by_slug/${bookingSlug}`,
+    {},
+    false, // useItemsBookingsUrl = false (uses BASE_URL)
+    true // useCustomerAuth = true (includes Authorization Bearer token)
+  );
+}
+
+export async function getBookingBySlugPublic(
+  bookingSlug: string,
+  authToken: string
+): Promise<Booking[]> {
+  const response = await fetch(`${BASE_URL}/booking_by_slug/${bookingSlug}`, {
+    headers: {
+      ...BASE_HEADERS,
+      Authorization: `Bearer ${authToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      response.statusText,
+      "Failed to fetch booking"
+    );
+  }
+
+  return response.json();
+}
+
+// ============================================================================
+// SHOPS API
+// ============================================================================
+
+// GET current user's shop - Uses ITEMS_BOOKINGS_URL + auth token
+export async function getCurrentShop(): Promise<Shop> {
+  return apiFetch<Shop>(
+    "/shop",
+    {},
+    true, // useItemsBookingsUrl
+    true, // useCustomerAuth
+    true // skipAutoLogout - NEW: Don't logout if shop doesn't exist
+  );
+}
+
+// POST create/update shop - Uses ITEMS_BOOKINGS_URL + auth token
+export async function createShop(data: CreateShopRequest): Promise<Shop> {
+  return apiFetch<Shop>(
+    "/shops",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    true,
+    true
+  );
+}
+
+// GET shop franchisor relationship by shop ID
+export async function getShopFranchisorByShopId(
+  shopId: string
+): Promise<ShopFranchisor[]> {
+  return apiFetch<ShopFranchisor[]>(
+    `/shop_franchisor_by_shops_id/${shopId}`,
+    {},
+    true, // useItemsBookingsUrl
+    true // useCustomerAuth
+  );
+}
+
+// PUT grant ownership to shop - makes user the owner
+export async function grantShopOwnership(
+  franchisorId: number,
+  franchiseId: string
+): Promise<any> {
+  return apiFetch(
+    `/shops_franchisor_owner/${franchisorId}/${franchiseId}`,
+    {
+      method: "PUT",
+    },
+    true, // useItemsBookingsUrl
+    true // useCustomerAuth
+  );
+}
+// ============================================================================
+// AUTH API (Public - no token needed)
+// ============================================================================
+
+export async function getAuthMe(): Promise<any> {
+  const response = await fetch(`${BASE_URL}/auth/me`, {
+    headers: BASE_HEADERS,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Auth failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
 // ============================================================================
@@ -550,73 +1005,6 @@ export const itemsCache = new ItemsCache();
 // ============================================================================
 // STORAGE LAYER
 // ============================================================================
-
-export interface EstimateMetadata {
-  estimateNumber: string;
-  date: string;
-  validUntil: string;
-  notes: string;
-  customerInfo: {
-    name: string;
-    email: string;
-    phone: string;
-    address: string;
-  };
-  items: Array<{
-    id: number;
-    description: string;
-    quantity: number;
-    rate: number;
-    amount: number;
-    imageUrl?: string | null;
-  }>;
-  discount: number;
-  tax: number;
-  totals: {
-    subtotal: number;
-    discountAmount: number;
-    taxAmount: number;
-    total: number;
-  };
-  bookingId?: number;
-  savedAt: string;
-}
-
-export interface Customer {
-  id: string;
-  created_at: number;
-  elegant_user_id: string;
-  external_dashbord_token?: string;
-  external_shopping_cart?: string;
-  external_settings?: string;
-  external_token?: string;
-  customer_number: number;
-  Full_name: string;
-  cust_info?: any;
-  is_online_now?: boolean;
-  is_online_timestamp?: number;
-  is_blocked_or_denied?: boolean;
-  email: string;
-  _shops?: {
-    id: string;
-    created_at: number;
-    name: string;
-    description: string;
-    logo: string;
-    custom_domain: string;
-    Is_visible: boolean;
-    slug: string;
-    allow_affiliate: boolean;
-    testmode: boolean;
-  };
-}
-
-export interface CreateCustomerRequest {
-  elegant_user_id: string;
-  Full_name: string;
-  email?: string;
-  cust_info?: any;
-}
 
 export async function saveEstimateToStorage(
   estimateNumber: string,
@@ -719,57 +1107,6 @@ export async function loadCompleteEstimate(
   }
 }
 
-export async function getBookingBySlug(
-  bookingSlug: string
-): Promise<Booking[]> {
-  return apiFetch<Booking[]>(`/booking_by_slug/${bookingSlug}`, {}, false);
-}
-
-// shopinfo
-
-// Get shop by ID - Uses ITEMS_BOOKINGS_URL
-export async function getShop(shopId: string): Promise<Shop> {
-  return apiFetch<Shop>(`/shops/${shopId}`, {}, true);
-}
-
-// Create new shop - Uses ITEMS_BOOKINGS_URL
-export async function createShop(data: CreateShopRequest): Promise<Shop> {
-  return apiFetch<Shop>(
-    "/shops",
-    {
-      method: "POST",
-      body: JSON.stringify(data),
-    },
-    true
-  );
-}
-
-// Update shop - Uses ITEMS_BOOKINGS_URL
-export async function updateShop(
-  shopId: string,
-  data: UpdateShopRequest
-): Promise<Shop> {
-  return apiFetch<Shop>(
-    `/shops/${shopId}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    },
-    true
-  );
-}
-
-// Delete shop - Uses ITEMS_BOOKINGS_URL
-export async function deleteShop(shopId: string): Promise<void> {
-  return apiFetch<void>(
-    `/shops/${shopId}`,
-    {
-      method: "DELETE",
-    },
-    true
-  );
-}
-
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
@@ -813,11 +1150,8 @@ export async function generateFinancialYearEstimateNumber(): Promise<string> {
     // Determine financial year
     const financialYear = currentMonth >= 3 ? currentYear : currentYear - 1;
     const financialYearEnd = financialYear + 1;
-    const fyString = `${financialYear}-${financialYearEnd
-      .toString()
-      .slice(-2)}`;
 
-    // **CHANGED: Financial year boundaries**
+    // Financial year boundaries
     const financialYearStart = new Date(financialYear, 3, 1).getTime(); // April 1st
     const financialYearEndDate = new Date(
       financialYearEnd,
@@ -828,8 +1162,8 @@ export async function generateFinancialYearEstimateNumber(): Promise<string> {
       59
     ).getTime(); // March 31st
 
-    // **CHANGED: Fetch ALL bookings using pagination**
-    let allBookings = [];
+    // Fetch ALL bookings using pagination
+    let allBookings: Booking[] = [];
     let currentPage = 1;
     let hasMorePages = true;
 
@@ -841,7 +1175,7 @@ export async function generateFinancialYearEstimateNumber(): Promise<string> {
       currentPage++;
     }
 
-    // **CHANGED: Count only bookings created in current financial year**
+    // Count only bookings created in current financial year
     const bookingsInCurrentFY = allBookings.filter(
       (booking) =>
         booking.created_at >= financialYearStart &&
@@ -860,23 +1194,23 @@ export async function generateFinancialYearEstimateNumber(): Promise<string> {
 }
 
 // ============================================================================
-// INITIALIZATION
+// EXPORTS
 // ============================================================================
 
-// Initialize auth token on module load
-authManager.initialize().catch((error) => {
-  console.error("[Auth] Failed to initialize:", error);
-});
+export { authManager };
 
-// Export everything
 export default {
   // Auth
   authManager,
   getAuthMe,
+  initializeCustomer,
+  customerSignout,
+  refreshCustomerToken,
 
   // Items
   getAllItems,
   getItems,
+  searchItems,
   itemsCache,
 
   // Customers
@@ -893,12 +1227,14 @@ export default {
   addBookingItem,
   createCustomerInvite,
   getBookingBySlug,
+  updateBookingItem,
+  getBookingItems,
 
   // Shops
-  getShop,
+  getCurrentShop,
   createShop,
-  updateShop,
-  deleteShop,
+  getShopFranchisorByShopId,
+  grantShopOwnership,
 
   // Storage
   saveEstimateToStorage,
@@ -914,8 +1250,5 @@ export default {
   generateEstimateNumber,
   calculateEstimateTotals,
   generateFinancialYearEstimateNumber,
-
-  updateBookingItem,
   createLead,
-  getBookingItems,
 };

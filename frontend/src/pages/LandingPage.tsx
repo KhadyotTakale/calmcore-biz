@@ -196,7 +196,7 @@ const LandingPage = () => {
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/auth")}
                 className="flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
               >
                 Get Started Free
@@ -390,7 +390,7 @@ const LandingPage = () => {
 
               {/* CTA Button */}
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/auth")}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
               >
                 Get Started Now
@@ -424,7 +424,7 @@ const LandingPage = () => {
                   Elegant Pro
                 </p>
                 <button
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/auth")}
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
                 >
                   Start Your Free Trial

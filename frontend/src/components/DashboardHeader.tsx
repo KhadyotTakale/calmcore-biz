@@ -1,21 +1,45 @@
 import { Settings, Bell } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { getBookings } from "@/services/api";
+import { getBookings, authManager } from "@/services/api";
+import { useUser } from "@clerk/clerk-react";
 import dashboardHero from "@/assets/dashboard-hero.jpg";
 
 export const DashboardHeader = () => {
+  const { user, isLoaded } = useUser();
   const [todaySales, setTodaySales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
+  // Check if auth is ready before making API calls
   useEffect(() => {
-    fetchSalesData();
-  }, []);
+    if (!isLoaded || !user) {
+      setIsAuthReady(false);
+      return;
+    }
+
+    const token = authManager.getCustomerAuthToken();
+    const shopId = localStorage.getItem("shopId");
+
+    if (token && shopId) {
+      setIsAuthReady(true);
+    } else {
+      setIsAuthReady(false);
+    }
+  }, [user, isLoaded]);
+
+  // Only fetch data when auth is ready
+  useEffect(() => {
+    if (isAuthReady) {
+      fetchSalesData();
+    }
+  }, [isAuthReady]);
 
   const fetchSalesData = async () => {
     try {
+      setLoading(true);
       const response = await getBookings(1, 100);
 
       const today = new Date();
@@ -29,15 +53,42 @@ export const DashboardHeader = () => {
       let monthTotal = 0;
       let allTimeTotal = 0;
 
+      // Handle empty bookings gracefully
+      if (!response.items || response.items.length === 0) {
+        setTodaySales(0);
+        setMonthSales(0);
+        setTotalSales(0);
+        setLoading(false);
+        return;
+      }
+
       response.items.forEach((booking) => {
         const bookingDate = new Date(booking.created_at);
         const items = booking._booking_items_of_bookings?.items || [];
 
-        const bookingAmount = items.reduce((sum, item) => {
+        // Skip bookings with no items
+        if (items.length === 0) return;
+
+        const subtotal = items.reduce((sum, item) => {
           const quantity = item.quantity || 1;
           const price = parseFloat(item.price) || item._items?.price || 0;
           return sum + quantity * price;
         }, 0);
+
+        // Get tax rates from first item's booking_items_info
+        const firstItem = items[0];
+        const bookingInfo = firstItem?.booking_items_info;
+        const taxInfo = bookingInfo?.tax_info || {};
+        const discount = taxInfo.discount || 0;
+        const cgst = taxInfo.cgst || 9;
+        const sgst = taxInfo.sgst || 9;
+
+        // Calculate total with tax
+        const discountAmount = (subtotal * discount) / 100;
+        const taxableAmount = subtotal - discountAmount;
+        const cgstAmount = (taxableAmount * cgst) / 100;
+        const sgstAmount = (taxableAmount * sgst) / 100;
+        const bookingAmount = taxableAmount + cgstAmount + sgstAmount;
 
         // Today's sales
         if (bookingDate >= today && bookingDate < tomorrow) {
@@ -59,6 +110,10 @@ export const DashboardHeader = () => {
       setLoading(false);
     } catch (error) {
       console.error("Error fetching sales data:", error);
+      // Set to zero instead of leaving in loading state
+      setTodaySales(0);
+      setMonthSales(0);
+      setTotalSales(0);
       setLoading(false);
     }
   };
@@ -138,19 +193,31 @@ export const DashboardHeader = () => {
           <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
             <p className="mb-1 text-xs text-muted-foreground">Today's Sales</p>
             <p className="font-mono text-xl font-semibold text-success">
-              {loading ? "..." : formatCurrency(todaySales)}
+              {loading ? (
+                <span className="animate-pulse">...</span>
+              ) : (
+                formatCurrency(todaySales)
+              )}
             </p>
           </div>
           <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
             <p className="mb-1 text-xs text-muted-foreground">This Month</p>
             <p className="font-mono text-xl font-semibold text-primary">
-              {loading ? "..." : formatCurrency(monthSales)}
+              {loading ? (
+                <span className="animate-pulse">...</span>
+              ) : (
+                formatCurrency(monthSales)
+              )}
             </p>
           </div>
           <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
             <p className="mb-1 text-xs text-muted-foreground">Total Sales</p>
             <p className="font-mono text-xl font-semibold text-info">
-              {loading ? "..." : formatCurrency(totalSales)}
+              {loading ? (
+                <span className="animate-pulse">...</span>
+              ) : (
+                formatCurrency(totalSales)
+              )}
             </p>
           </div>
         </motion.div>

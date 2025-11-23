@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
-import { getBookingBySlug, getBooking } from "@/services/api";
+import { getBookingBySlug, getBooking, authManager } from "@/services/api";
 
 // Number to words converter
 const numberToWords = (num) => {
@@ -101,16 +101,19 @@ const EstimatePreview = () => {
       }
 
       try {
-        // Get booking by slug
+        console.log("[EstimatePreview] Fetching booking:", bookingSlug);
+
+        // Get booking by slug (uses customer auth internally)
         const bookingArray = await getBookingBySlug(bookingSlug);
+
+        console.log("[EstimatePreview] Booking response:", bookingArray);
+
         if (!bookingArray || bookingArray.length === 0) {
           throw new Error("Booking not found");
         }
 
         const booking = bookingArray[0];
         const bookingDetails = await getBooking(booking.id);
-
-        // Get booking items with details
         const bookingItems =
           bookingDetails._booking_items_of_bookings?.items || [];
 

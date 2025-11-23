@@ -36,11 +36,24 @@ const TransactionCard = ({ booking, delay = 0 }) => {
     bookingInfo?.customer_info?.email || customer?.email || "";
 
   // Calculate total amount
-  const totalAmount = items.reduce((sum, item) => {
+  const subtotal = items.reduce((sum, item) => {
     const quantity = item.quantity || 1;
     const price = parseFloat(item.price) || item._items?.price || 0;
     return sum + quantity * price;
   }, 0);
+
+  // Get tax rates from saved data (use defaults if not saved)
+  const taxInfo = bookingInfo?.tax_info || {};
+  const discount = taxInfo.discount || 0;
+  const cgst = taxInfo.cgst || 9;
+  const sgst = taxInfo.sgst || 9;
+
+  // Calculate total with tax
+  const discountAmount = (subtotal * discount) / 100;
+  const taxableAmount = subtotal - discountAmount;
+  const cgstAmount = (taxableAmount * cgst) / 100;
+  const sgstAmount = (taxableAmount * sgst) / 100;
+  const totalAmount = taxableAmount + cgstAmount + sgstAmount;
 
   // Get estimate details
   const estimateNumber =
@@ -227,9 +240,26 @@ const Transactions = () => {
       setLoading(true);
       setError(null);
 
-      const response = await getBookings(1, 25);
-      setBookings(response.items);
+      const response = await getBookings(1, 100); // Fetch more to filter
 
+      console.log("Total bookings fetched:", response.items.length);
+
+      // Filter only estimates (document_type = "estimate")
+      const estimateBookings = response.items.filter((booking) => {
+        const items = booking._booking_items_of_bookings?.items || [];
+        const firstItem = items[0];
+        const bookingInfo = firstItem?.booking_items_info;
+        const docType = bookingInfo?.document_type;
+
+        console.log("Booking ID:", booking.id, "Document Type:", docType);
+
+        // Include if document_type is "estimate" OR if it's not set (legacy estimates)
+        return docType === "estimate" || !docType;
+      });
+
+      console.log("Filtered estimates:", estimateBookings.length);
+
+      setBookings(estimateBookings);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching bookings:", err);
@@ -269,17 +299,33 @@ const Transactions = () => {
     );
   });
 
-  // Calculate statistics
+  // Calculate statistics with tax
   const totalAmount = bookings.reduce((sum, booking) => {
     const items = booking._booking_items_of_bookings?.items || [];
-    return (
-      sum +
-      items.reduce((itemSum, item) => {
-        const quantity = item.quantity || 1;
-        const price = parseFloat(item.price) || item._items?.price || 0;
-        return itemSum + quantity * price;
-      }, 0)
-    );
+    const firstItem = items[0];
+    const bookingInfo = firstItem?.booking_items_info;
+
+    // Calculate subtotal
+    const subtotal = items.reduce((itemSum, item) => {
+      const quantity = item.quantity || 1;
+      const price = parseFloat(item.price) || item._items?.price || 0;
+      return itemSum + quantity * price;
+    }, 0);
+
+    // Get tax rates
+    const taxInfo = bookingInfo?.tax_info || {};
+    const discount = taxInfo.discount || 0;
+    const cgst = taxInfo.cgst || 9;
+    const sgst = taxInfo.sgst || 9;
+
+    // Calculate with tax
+    const discountAmount = (subtotal * discount) / 100;
+    const taxableAmount = subtotal - discountAmount;
+    const cgstAmount = (taxableAmount * cgst) / 100;
+    const sgstAmount = (taxableAmount * sgst) / 100;
+    const bookingTotal = taxableAmount + cgstAmount + sgstAmount;
+
+    return sum + bookingTotal;
   }, 0);
 
   const totalTransactions = bookings.length;
@@ -309,7 +355,7 @@ const Transactions = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
-                Transactions
+                Estimates
               </h1>
               <p className="text-sm text-muted-foreground">
                 Manage and track all your estimates

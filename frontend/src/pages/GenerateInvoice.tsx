@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   Trash2,
   ArrowLeft,
-  Save,
-  Send,
   Download,
-  FileCheck,
+  Send,
+  AlertCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import ItemSelector from "@/components/estimate/ItemSelector";
+import {
+  createBooking,
+  addBookingItem,
+  updateBookingItem,
+  createLead,
+  generateFinancialYearEstimateNumber,
+  authManager,
+} from "@/services/api";
 
 const GenerateInvoice = () => {
   const [customerInfo, setCustomerInfo] = useState({
@@ -16,33 +24,76 @@ const GenerateInvoice = () => {
     email: "",
     phone: "",
     address: "",
-    gst: "",
+    state: "",
+    gstin: "",
   });
 
   const [items, setItems] = useState([
-    { id: 1, description: "", quantity: 1, rate: 0, amount: 0 },
+    {
+      id: 1,
+      catalogItemId: null,
+      description: "",
+      quantity: 1,
+      rate: 0,
+      amount: 0,
+      imageUrl: null,
+    },
   ]);
 
   const [invoiceDetails, setInvoiceDetails] = useState({
-    invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+    invoiceNumber: "Loading...",
     date: new Date().toISOString().split("T")[0],
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0],
-    paymentTerms: "Net 30",
     notes: "",
-    bankDetails: "",
   });
 
   const [discount, setDiscount] = useState(0);
-  const [tax, setTax] = useState(18);
-  const [shippingCharges, setShippingCharges] = useState(0);
-  const [paymentStatus, setPaymentStatus] = useState("unpaid");
+  const [cgst, setCgst] = useState(9);
+  const [sgst, setSgst] = useState(9);
+  const [loading, setLoading] = useState(false);
+  const [bookingSlug, setBookingSlug] = useState(null);
+  const [invoiceCreated, setInvoiceCreated] = useState(false);
+  const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(true);
+  const [validationErrors, setValidationErrors] = useState([]);
+
+  // Generate invoice number on mount
+  useEffect(() => {
+    const initInvoiceNumber = async () => {
+      try {
+        const estimateNumber = await generateFinancialYearEstimateNumber();
+        const invoiceNumber = estimateNumber.replace("EST-", "INV-");
+        setInvoiceDetails((prev) => ({
+          ...prev,
+          invoiceNumber,
+        }));
+        setInvoiceNumberLoading(false);
+      } catch (error) {
+        console.error("Failed to generate invoice number:", error);
+        setInvoiceDetails((prev) => ({
+          ...prev,
+          invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        }));
+        setInvoiceNumberLoading(false);
+      }
+    };
+
+    initInvoiceNumber();
+  }, []);
 
   const addItem = () => {
     setItems([
       ...items,
-      { id: Date.now(), description: "", quantity: 1, rate: 0, amount: 0 },
+      {
+        id: Date.now(),
+        catalogItemId: null,
+        description: "",
+        quantity: 1,
+        rate: 0,
+        amount: 0,
+        imageUrl: null,
+      },
     ]);
   };
 
@@ -67,18 +118,268 @@ const GenerateInvoice = () => {
     );
   };
 
+  const handleItemSelect = (selectedItem, itemId) => {
+    setItems(
+      items.map((item) => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            catalogItemId: selectedItem.id,
+            description: selectedItem.description,
+            quantity: selectedItem.quantity,
+            rate: selectedItem.rate,
+            amount: selectedItem.amount,
+            imageUrl: selectedItem.imageUrl || null,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const discountAmount = (subtotal * discount) / 100;
   const taxableAmount = subtotal - discountAmount;
-  const taxAmount = (taxableAmount * tax) / 100;
-  const total = taxableAmount + taxAmount + shippingCharges;
+  const cgstAmount = (taxableAmount * cgst) / 100;
+  const sgstAmount = (taxableAmount * sgst) / 100;
+  const total = taxableAmount + cgstAmount + sgstAmount;
 
-  const handleSend = () => {
-    alert("Invoice sent to customer!");
+  // ============================================================================
+  // VALIDATION FUNCTION - Returns errors array
+  // ============================================================================
+  const validateInvoiceData = () => {
+    const errors = [];
+
+    // 1. Customer Name (Required)
+    const name = customerInfo.name?.trim();
+    if (!name || name.length === 0) {
+      errors.push("Customer name is required");
+    }
+
+    // 2. Phone (Required + Basic validation)
+    const phone = customerInfo.phone?.trim().replace(/\D/g, "");
+    if (!phone || phone.length === 0) {
+      errors.push("Customer phone number is required");
+    } else if (phone.length < 10) {
+      errors.push("Phone number must be at least 10 digits");
+    }
+
+    // 3. Email (Optional but validate format if provided)
+    const email = customerInfo.email?.trim();
+    if (
+      email &&
+      email.length > 0 &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+      errors.push("Please enter a valid email address");
+    }
+
+    // 4. Invoice Number
+    if (
+      invoiceDetails.invoiceNumber === "Loading..." ||
+      !invoiceDetails.invoiceNumber
+    ) {
+      errors.push("Invoice number is still loading. Please wait...");
+    }
+
+    // 5. Items validation
+    const validItems = items.filter(
+      (item) =>
+        item.catalogItemId &&
+        typeof item.catalogItemId === "number" &&
+        item.description?.trim() &&
+        item.rate > 0 &&
+        item.quantity > 0
+    );
+
+    if (validItems.length === 0) {
+      errors.push("Please select at least one valid item from the catalog");
+    }
+
+    return { isValid: errors.length === 0, errors, validItems };
+  };
+
+  // ============================================================================
+  // ENHANCED CREATE INVOICE - WITH VALIDATION & ERROR HANDLING
+  // ============================================================================
+  const handleCreateInvoice = async () => {
+    // Clear previous errors
+    setValidationErrors([]);
+
+    // Validate before proceeding
+    const validation = validateInvoiceData();
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Prepare clean customer data (trim all values)
+      const name = customerInfo.name.trim();
+      const phone = customerInfo.phone.trim();
+      const email = customerInfo.email?.trim() || "";
+      const address = customerInfo.address?.trim() || "";
+      const state = customerInfo.state?.trim() || "";
+      const gstin = customerInfo.gstin?.trim() || "";
+
+      const customerData = {
+        name,
+        email,
+        phone,
+        address,
+        state,
+        gstin,
+      };
+
+      console.log("📋 Customer data to save:", customerData);
+
+      // Create booking
+      const booking = await createBooking();
+      console.log("✓ Booking created:", booking.id);
+
+      // Add items sequentially with error tracking
+      const itemErrors = [];
+
+      for (let i = 0; i < validation.validItems.length; i++) {
+        const item = validation.validItems[i];
+
+        try {
+          // Add item to booking
+          await addBookingItem(booking.id, item.catalogItemId);
+          console.log(
+            `✓ Added item ${i + 1}/${validation.validItems.length}: ${
+              item.description
+            }`
+          );
+
+          // Update the item with its data
+          if (i === 0) {
+            // FIRST item gets ALL the invoice data
+            await updateBookingItem(booking.id, item.catalogItemId, {
+              quantity: item.quantity,
+              price: item.rate.toString(),
+              booking_items_info: {
+                document_type: "invoice",
+                special_instructions: invoiceDetails.notes?.trim() || "",
+                image_url: item.imageUrl || "",
+                customer_info: customerData,
+                invoice_details: {
+                  invoiceNumber: invoiceDetails.invoiceNumber,
+                  date: invoiceDetails.date,
+                  dueDate: invoiceDetails.dueDate,
+                },
+                tax_info: {
+                  discount: discount,
+                  cgst: cgst,
+                  sgst: sgst,
+                },
+              },
+            });
+            console.log("✓ First item updated with COMPLETE invoice data");
+          } else {
+            // Remaining items get basic data only
+            await updateBookingItem(booking.id, item.catalogItemId, {
+              quantity: item.quantity,
+              price: item.rate.toString(),
+              booking_items_info: {
+                image_url: item.imageUrl || "",
+              },
+            });
+            console.log(`✓ Item ${i + 1} updated with basic data`);
+          }
+        } catch (itemError) {
+          console.error(`❌ Failed to process item ${i + 1}:`, itemError);
+          itemErrors.push(`Item "${item.description}": ${itemError.message}`);
+        }
+      }
+
+      // Check if any items failed
+      if (itemErrors.length > 0) {
+        throw new Error(
+          `Failed to add ${itemErrors.length} item(s):\n${itemErrors.join(
+            "\n"
+          )}`
+        );
+      }
+
+      // Create lead - only if email is provided (non-critical)
+      if (customerData.email) {
+        try {
+          await createLead({
+            email: customerData.email,
+            first_name: customerData.name.split(" ")[0] || customerData.name,
+            last_name: customerData.name.split(" ").slice(1).join(" ") || "",
+            addresses: customerData.address
+              ? [
+                  {
+                    line1: customerData.address,
+                    region: customerData.state || "",
+                    country: "India",
+                    country_code: "IN",
+                  },
+                ]
+              : [],
+            phone_numbers: customerData.phone
+              ? [{ number: customerData.phone, type: "mobile" }]
+              : [],
+            config: customerData.gstin
+              ? [{ key: "gstin", val: customerData.gstin, datatype: "STRING" }]
+              : [],
+          });
+          console.log("✓ Lead created");
+        } catch (leadError) {
+          console.warn("⚠️ Lead creation failed (non-critical):", leadError);
+        }
+      }
+
+      // Save booking slug and mark as created
+      setBookingSlug(booking.booking_slug);
+      setInvoiceCreated(true);
+
+      console.log("✅ INVOICE CREATED SUCCESSFULLY");
+      console.log("Booking ID:", booking.id);
+      console.log("Booking Slug:", booking.booking_slug);
+      console.log("Customer:", customerData.name);
+
+      alert(
+        `✓ Invoice created successfully!\n\nInvoice #: ${invoiceDetails.invoiceNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
+      );
+    } catch (error) {
+      console.error("❌ Error creating invoice:", error);
+      const errorMessage = error.message || "An unexpected error occurred";
+      alert("Failed to create invoice: " + errorMessage);
+      setValidationErrors([errorMessage]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownload = () => {
-    alert("Invoice downloaded as PDF!");
+    if (!bookingSlug) return;
+    window.open(`/invoice-preview?id=${bookingSlug}`, "_blank");
+  };
+
+  const handleSendToCustomer = () => {
+    if (!bookingSlug) return;
+
+    const shareableLink = `${window.location.origin}/invoice-preview?id=${bookingSlug}`;
+    const message = `Hello ${
+      customerInfo.name
+    }! 👋\n\nThank you for your business with Mrudgandh. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
+      invoiceDetails.dueDate
+    ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
+      2
+    )}\n\nPlease make payment by the due date.\n\nTeam Mrudgandh`;
+
+    const phone = customerInfo.phone.replace(/\D/g, "");
+    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+      message
+    )}`;
+
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -98,18 +399,41 @@ const GenerateInvoice = () => {
               <ArrowLeft className="h-5 w-5 text-foreground" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <FileCheck className="h-6 w-6 text-secondary" />
-                <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
-                  Generate Invoice
-                </h1>
-              </div>
+              <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
+                Generate Invoice
+              </h1>
               <p className="text-sm text-muted-foreground">
-                Create and send professional invoices
+                Create a professional invoice
               </p>
             </div>
           </div>
         </motion.div>
+
+        {/* Validation Errors Alert */}
+        {validationErrors.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-destructive mb-2">
+                  Please fix the following errors:
+                </h3>
+                <ul className="space-y-1 text-sm text-destructive/90">
+                  {validationErrors.map((error, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span>•</span>
+                      <span>{error}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Form */}
@@ -129,21 +453,29 @@ const GenerateInvoice = () => {
                   <label className="mb-2 block text-sm font-medium text-foreground">
                     Invoice Number
                   </label>
-                  <input
-                    type="text"
-                    value={invoiceDetails.invoiceNumber}
-                    onChange={(e) =>
-                      setInvoiceDetails({
-                        ...invoiceDetails,
-                        invoiceNumber: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={invoiceDetails.invoiceNumber}
+                      onChange={(e) =>
+                        setInvoiceDetails({
+                          ...invoiceDetails,
+                          invoiceNumber: e.target.value,
+                        })
+                      }
+                      disabled={invoiceNumberLoading}
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:opacity-50"
+                    />
+                    {invoiceNumberLoading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-secondary border-t-transparent" />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    Invoice Date
+                    Date
                   </label>
                   <input
                     type="date"
@@ -174,43 +506,6 @@ const GenerateInvoice = () => {
                   />
                 </div>
               </div>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Payment Terms
-                  </label>
-                  <select
-                    value={invoiceDetails.paymentTerms}
-                    onChange={(e) =>
-                      setInvoiceDetails({
-                        ...invoiceDetails,
-                        paymentTerms: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  >
-                    <option value="Due on Receipt">Due on Receipt</option>
-                    <option value="Net 15">Net 15</option>
-                    <option value="Net 30">Net 30</option>
-                    <option value="Net 45">Net 45</option>
-                    <option value="Net 60">Net 60</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Payment Status
-                  </label>
-                  <select
-                    value={paymentStatus}
-                    onChange={(e) => setPaymentStatus(e.target.value)}
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  >
-                    <option value="unpaid">Unpaid</option>
-                    <option value="partially_paid">Partially Paid</option>
-                    <option value="paid">Paid</option>
-                  </select>
-                </div>
-              </div>
             </motion.div>
 
             {/* Customer Information */}
@@ -221,12 +516,12 @@ const GenerateInvoice = () => {
               className="rounded-2xl border border-border bg-card p-6 shadow-sm"
             >
               <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                Bill To
+                Customer Information
               </h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    Customer Name *
+                    Customer Name <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
@@ -240,7 +535,24 @@ const GenerateInvoice = () => {
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    Email *
+                    Phone <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerInfo.phone}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        phone: e.target.value,
+                      })
+                    }
+                    placeholder="XXXXXXXXXX"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    Email
                   </label>
                   <input
                     type="email"
@@ -257,43 +569,10 @@ const GenerateInvoice = () => {
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerInfo.phone}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        phone: e.target.value,
-                      })
-                    }
-                    placeholder="+91 XXXXX XXXXX"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    GST Number
+                    Address
                   </label>
                   <input
                     type="text"
-                    value={customerInfo.gst}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        gst: e.target.value,
-                      })
-                    }
-                    placeholder="GSTIN (optional)"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Billing Address
-                  </label>
-                  <textarea
                     value={customerInfo.address}
                     onChange={(e) =>
                       setCustomerInfo({
@@ -301,8 +580,41 @@ const GenerateInvoice = () => {
                         address: e.target.value,
                       })
                     }
-                    placeholder="Customer billing address"
-                    rows="2"
+                    placeholder="Customer address"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    value={customerInfo.state}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        state: e.target.value,
+                      })
+                    }
+                    placeholder="Maharashtra"
+                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    GSTIN
+                  </label>
+                  <input
+                    type="text"
+                    value={customerInfo.gstin}
+                    onChange={(e) =>
+                      setCustomerInfo({
+                        ...customerInfo,
+                        gstin: e.target.value,
+                      })
+                    }
+                    placeholder="GST Number"
                     className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                   />
                 </div>
@@ -318,7 +630,7 @@ const GenerateInvoice = () => {
             >
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-heading text-lg font-semibold text-foreground">
-                  Items / Services
+                  Items
                 </h2>
                 <button
                   onClick={addItem}
@@ -333,122 +645,137 @@ const GenerateInvoice = () => {
                 {items.map((item, index) => (
                   <div
                     key={item.id}
-                    className="grid gap-4 rounded-lg border border-border bg-muted/30 p-4 md:grid-cols-12"
+                    className="space-y-4 rounded-lg border border-border bg-muted/30 p-4"
                   >
-                    <div className="md:col-span-5">
+                    <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
-                        Description
+                        Select Item from Catalog
                       </label>
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) =>
-                          updateItem(item.id, "description", e.target.value)
+                      <ItemSelector
+                        onItemSelect={(selectedItem) =>
+                          handleItemSelect(selectedItem, item.id)
                         }
-                        placeholder="Item or service description"
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                       />
                     </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        min="1"
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Rate (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={item.rate}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "rate",
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        min="0"
-                        step="0.01"
-                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Amount
-                      </label>
-                      <div className="flex h-10 items-center rounded-lg border border-input bg-muted px-3 text-sm font-medium text-foreground">
-                        ₹{item.amount.toFixed(2)}
+
+                    {item.imageUrl && (
+                      <div className="flex items-center gap-3 rounded-lg bg-background p-3 border border-border">
+                        <img
+                          src={item.imageUrl}
+                          alt={item.description}
+                          className="w-16 h-16 object-cover rounded border border-border"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {item.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Selected item preview
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-end md:col-span-1">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        disabled={items.length === 1}
-                        className="flex h-10 w-full items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive transition-all hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    )}
+
+                    <div className="grid gap-4 md:grid-cols-20">
+                      <div className="md:col-span-10">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Description
+                        </label>
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) =>
+                            updateItem(item.id, "description", e.target.value)
+                          }
+                          placeholder="Item description"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Quantity
+                        </label>
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItem(
+                              item.id,
+                              "quantity",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          min="1"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Rate (₹)
+                        </label>
+                        <input
+                          type="number"
+                          value={item.rate}
+                          onChange={(e) =>
+                            updateItem(
+                              item.id,
+                              "rate",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          min="0"
+                          step="0.01"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                        />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Amount
+                        </label>
+                        <div className="flex h-10 items-center rounded-lg border border-input bg-muted px-3 text-sm font-medium text-foreground">
+                          ₹{item.amount.toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="flex items-end md:col-span-1">
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          disabled={items.length === 1}
+                          className="flex h-10 w-full items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive transition-all hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </motion.div>
 
-            {/* Notes & Bank Details */}
+            {/* Notes */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="grid gap-6 md:grid-cols-2"
+              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
             >
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                  Notes
-                </h2>
-                <textarea
-                  value={invoiceDetails.notes}
-                  onChange={(e) =>
-                    setInvoiceDetails({
-                      ...invoiceDetails,
-                      notes: e.target.value,
-                    })
-                  }
-                  placeholder="Add any additional notes or terms..."
-                  rows="4"
-                  className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                />
-              </div>
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                  Bank Details
-                </h2>
-                <textarea
-                  value={invoiceDetails.bankDetails}
-                  onChange={(e) =>
-                    setInvoiceDetails({
-                      ...invoiceDetails,
-                      bankDetails: e.target.value,
-                    })
-                  }
-                  placeholder="Account Name, Bank Name, Account Number, IFSC Code..."
-                  rows="4"
-                  className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                />
-              </div>
+              <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
+                Additional Notes
+              </h2>
+              <textarea
+                value={invoiceDetails.notes}
+                onChange={(e) =>
+                  setInvoiceDetails({
+                    ...invoiceDetails,
+                    notes: e.target.value,
+                  })
+                }
+                placeholder="Add any additional notes or payment terms..."
+                rows="4"
+                className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+              />
             </motion.div>
           </div>
 
@@ -461,7 +788,7 @@ const GenerateInvoice = () => {
               className="sticky top-6 rounded-2xl border border-border bg-card p-6 shadow-sm"
             >
               <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                Invoice Summary
+                Summary
               </h2>
 
               <div className="space-y-3">
@@ -499,101 +826,132 @@ const GenerateInvoice = () => {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-foreground">
-                    Tax / GST (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={tax}
-                    onChange={(e) => setTax(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax Amount</span>
+                <div className="border-t border-border pt-2">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Net Amount</span>
                     <span className="font-medium text-foreground">
-                      +₹{taxAmount.toFixed(2)}
+                      ₹{taxableAmount.toFixed(2)}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-foreground">
-                    Shipping Charges (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={shippingCharges}
-                    onChange={(e) =>
-                      setShippingCharges(parseFloat(e.target.value) || 0)
-                    }
-                    min="0"
-                    step="0.01"
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                  {shippingCharges > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Shipping</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      CGST (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={cgst}
+                      onChange={(e) => setCgst(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Amount</span>
                       <span className="font-medium text-foreground">
-                        +₹{shippingCharges.toFixed(2)}
+                        ₹{cgstAmount.toFixed(2)}
                       </span>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      SGST (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={sgst}
+                      onChange={(e) => setSgst(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-medium text-foreground">
+                        ₹{sgstAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="border-t border-border pt-3">
                   <div className="flex justify-between">
                     <span className="font-heading text-lg font-bold text-foreground">
-                      Total Amount
+                      Grand Total
                     </span>
                     <span className="font-heading text-lg font-bold text-secondary">
                       ₹{total.toFixed(2)}
                     </span>
                   </div>
                 </div>
-
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      Status
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        paymentStatus === "paid"
-                          ? "bg-green-100 text-green-700"
-                          : paymentStatus === "partially_paid"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {paymentStatus === "paid"
-                        ? "Paid"
-                        : paymentStatus === "partially_paid"
-                        ? "Partially Paid"
-                        : "Unpaid"}
-                    </span>
-                  </div>
-                </div>
               </div>
 
               <div className="mt-6 space-y-3">
+                {/* Primary Action: Create Invoice */}
+                <button
+                  onClick={handleCreateInvoice}
+                  disabled={loading || invoiceNumberLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground transition-all hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-secondary-foreground border-t-transparent" />
+                      Creating...
+                    </>
+                  ) : invoiceNumberLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-secondary-foreground border-t-transparent" />
+                      Loading...
+                    </>
+                  ) : invoiceCreated ? (
+                    <>Create New Version</>
+                  ) : (
+                    <>Create Invoice</>
+                  )}
+                </button>
+
+                {/* Show success message after creation */}
+                {invoiceCreated && (
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-center">
+                    <p className="text-sm font-medium text-green-800">
+                      ✓ Invoice Created Successfully
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Invoice #{invoiceDetails.invoiceNumber}
+                    </p>
+                  </div>
+                )}
+
+                {/* Secondary Actions: Download & Send */}
                 <button
                   onClick={handleDownload}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted"
+                  disabled={!invoiceCreated || loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="h-4 w-4" />
                   Download PDF
                 </button>
+
                 <button
-                  onClick={handleSend}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground transition-all hover:bg-secondary/90"
+                  onClick={handleSendToCustomer}
+                  disabled={!invoiceCreated || loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-medium text-white transition-all hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4" />
                   Send to Customer
                 </button>
+
+                {/* Helper text when buttons are disabled */}
+                {!invoiceCreated && (
+                  <p className="text-xs text-center text-muted-foreground mt-2">
+                    Create invoice first to enable download and send options
+                  </p>
+                )}
               </div>
             </motion.div>
           </div>
