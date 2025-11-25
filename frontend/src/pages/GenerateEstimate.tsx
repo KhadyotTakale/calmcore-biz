@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
+import CustomerSelector from "@/components/estimate/CustomerSelector";
 import {
   createBooking,
   addBookingItem,
@@ -520,20 +521,25 @@ const GenerateEstimate = () => {
                 Customer Information
               </h2>
               <div className="grid gap-4 md:grid-cols-2">
-                <div>
+                <div className="md:col-span-2">
                   <label className="mb-2 block text-sm font-medium text-foreground">
                     Customer Name <span className="text-destructive">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <CustomerSelector
                     value={customerInfo.name}
-                    onChange={(e) =>
-                      setCustomerInfo({ ...customerInfo, name: e.target.value })
-                    }
-                    placeholder="Enter customer name"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    onCustomerSelect={(customer) => {
+                      setCustomerInfo({
+                        name: customer.name,
+                        email: customer.email,
+                        phone: customer.phone,
+                        address: customer.address,
+                        state: customer.state,
+                        gstin: customer.gstin,
+                      });
+                    }}
                   />
                 </div>
+
                 <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
                     Phone <span className="text-destructive">*</span>

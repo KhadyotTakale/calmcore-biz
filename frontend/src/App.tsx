@@ -36,6 +36,7 @@ import InvoicePreview from "./pages/InvoicePreview";
 import CompanyInfo from "./pages/CompanyInfo";
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -364,6 +365,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <CompanyInfo />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

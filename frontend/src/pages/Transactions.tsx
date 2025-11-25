@@ -17,6 +17,7 @@ import {
   IndianRupee,
 } from "lucide-react";
 import { getBookings } from "@/services/api";
+import html2pdf from "html2pdf.js";
 
 const TransactionCard = ({ booking, delay = 0 }) => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const TransactionCard = ({ booking, delay = 0 }) => {
   const customer = booking._customers;
   const firstItem = items[0];
   const bookingInfo = firstItem?.booking_items_info;
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Get customer info from booking_items_info or _customers
   const customerName =
@@ -76,23 +78,107 @@ const TransactionCard = ({ booking, delay = 0 }) => {
     window.open(`/estimate-preview?id=${booking.booking_slug}`, "_blank");
   };
 
-  const handleSendToCustomer = (e) => {
+  const handleSendToCustomer = async (e) => {
     e.stopPropagation();
-    const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
-    const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\n${
-      validUntil
-        ? `Valid until: ${new Date(validUntil).toLocaleDateString("en-IN")}\n`
-        : ""
-    }Total Amount: ₹${totalAmount.toFixed(
-      2
-    )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
 
-    const phone = customerPhone.replace(/\D/g, "");
-    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
-      message
-    )}`;
+    try {
+      setIsGeneratingPDF(true);
 
-    window.open(whatsappUrl, "_blank");
+      const phone = customerPhone.replace(/\D/g, "");
+      const estimateUrl = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
+
+      // Step 1: Generate and download PDF
+      // Create a hidden iframe to load the estimate
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      // Wait for iframe to load
+      await new Promise((resolve, reject) => {
+        iframe.onload = resolve;
+        iframe.onerror = reject;
+        iframe.src = estimateUrl;
+      });
+
+      // Wait for content to render
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Generate PDF from iframe content
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+      const pdfFilename = `Estimate_${estimateNumber}_${customerName.replace(
+        /\s+/g,
+        "_"
+      )}.pdf`;
+
+      const opt = {
+        margin: 0,
+        filename: pdfFilename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait",
+        },
+      };
+
+      // Generate and download PDF
+      await html2pdf().set(opt).from(iframeDoc.body).save();
+
+      // Clean up iframe
+      document.body.removeChild(iframe);
+
+      setIsGeneratingPDF(false);
+
+      // Step 2: Wait a moment for download to start
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Step 3: Show instruction modal and open WhatsApp
+      const userConfirmed = confirm(
+        `✅ PDF Downloaded: ${pdfFilename}\n\n` +
+          `📱 Next Steps:\n` +
+          `1. WhatsApp will open in a new tab\n` +
+          `2. Click the 📎 (attach) button in WhatsApp\n` +
+          `3. Select "Document" and attach the downloaded PDF\n` +
+          `4. Send the message!\n\n` +
+          `Click OK to open WhatsApp`
+      );
+
+      if (userConfirmed) {
+        // Step 4: Open WhatsApp with helpful message
+        const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${
+          validUntil
+            ? `✅ Valid until: ${new Date(validUntil).toLocaleDateString(
+                "en-IN"
+              )}\n`
+            : ""
+        }💰 Total Amount: ₹${totalAmount.toFixed(
+          2
+        )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+
+        const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+          message
+        )}`;
+
+        window.open(whatsappUrl, "_blank");
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      setIsGeneratingPDF(false);
+      alert(
+        "❌ Failed to generate PDF. Please try again or use the Download button."
+      );
+    }
   };
 
   const handleCardClick = () => {
@@ -202,11 +288,15 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           </button>
           <button
             onClick={handleSendToCustomer}
-            disabled={customerPhone === "N/A"}
+            disabled={customerPhone === "N/A" || isGeneratingPDF}
             className="flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Send className="h-4 w-4" />
-            Send
+            {isGeneratingPDF ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            {isGeneratingPDF ? "Generating..." : "Send"}
           </button>
           <button
             onClick={handleConvertToInvoice}

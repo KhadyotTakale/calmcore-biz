@@ -275,15 +275,34 @@ export interface CreateCustomerRequest {
   cust_info?: any;
 }
 
-export interface ShopFranchisor {
+export interface CustomerResponse {
+  customer: Customer;
+  authToken: string;
+}
+
+export interface Lead {
   id: number;
   created_at: number;
   shops_id: string;
-  franchise_id: string;
-  managers_id: any[];
-  owner_customers_id: string;
-  _franchisor: Shop;
-  _franchise: Shop;
+  lead_payload: {
+    email: string;
+    config: Array<{ key: string; val: string; datatype: string }>;
+    addresses: Array<{
+      line1: string;
+      region: string;
+      country: string;
+      country_code: string;
+    }>;
+    last_name: string;
+    first_name: string;
+    phone_numbers: Array<{ type: string; number: string }>;
+  };
+  status: string;
+  customers_id: string | null;
+  geo_location: any;
+  headers: any;
+  _shops?: Shop;
+  _leads_assignment_of_shops_of_leads?: any[];
 }
 
 // ============================================================================
@@ -619,6 +638,26 @@ export async function refreshCustomerToken(): Promise<boolean> {
 }
 
 // ============================================================================
+// LEADS API - Uses BASE_URL
+// ============================================================================
+
+export async function getLeads(
+  page = 1,
+  perPage = 100
+): Promise<PaginatedResponse<Lead>> {
+  return apiFetch<PaginatedResponse<Lead>>(
+    `/leads?page=${page}&perPage=${perPage}`,
+    {},
+    false,
+    true // Use customer auth
+  );
+}
+
+export async function getLeadById(leadId: number): Promise<Lead> {
+  return apiFetch<Lead>(`/leads/${leadId}`, {}, false, true);
+}
+
+// ============================================================================
 // ITEMS API - Uses ITEMS_BOOKINGS_URL
 // ============================================================================
 
@@ -660,10 +699,9 @@ export async function getItems(
 // CUSTOMERS API - Uses BASE_URL
 // ============================================================================
 
-export async function getCustomer(): Promise<Customer> {
-  return apiFetch<Customer>("/customer", {}, false, true); // Use customer auth
+export async function getCustomer(): Promise<CustomerResponse> {
+  return apiFetch<CustomerResponse>("/customer", {}, false, true);
 }
-
 export async function createCustomer(
   data: CreateCustomerRequest
 ): Promise<Customer> {
@@ -913,32 +951,6 @@ export async function createShop(data: CreateShopRequest): Promise<Shop> {
   );
 }
 
-// GET shop franchisor relationship by shop ID
-export async function getShopFranchisorByShopId(
-  shopId: string
-): Promise<ShopFranchisor[]> {
-  return apiFetch<ShopFranchisor[]>(
-    `/shop_franchisor_by_shops_id/${shopId}`,
-    {},
-    true, // useItemsBookingsUrl
-    true // useCustomerAuth
-  );
-}
-
-// PUT grant ownership to shop - makes user the owner
-export async function grantShopOwnership(
-  franchisorId: number,
-  franchiseId: string
-): Promise<any> {
-  return apiFetch(
-    `/shops_franchisor_owner/${franchisorId}/${franchiseId}`,
-    {
-      method: "PUT",
-    },
-    true, // useItemsBookingsUrl
-    true // useCustomerAuth
-  );
-}
 // ============================================================================
 // AUTH API (Public - no token needed)
 // ============================================================================
@@ -1220,6 +1232,10 @@ export default {
   updateCustomer,
   linkCustomerToBooking,
 
+  // Leads
+  getLeads,
+  getLeadById,
+
   // Bookings
   getBookings,
   getBooking,
@@ -1233,8 +1249,6 @@ export default {
   // Shops
   getCurrentShop,
   createShop,
-  getShopFranchisorByShopId,
-  grantShopOwnership,
 
   // Storage
   saveEstimateToStorage,

@@ -36,11 +36,11 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid min-h-screen gap-8 py-12 lg:grid-cols-2 lg:items-center">
-          {/* Left Side - Branding & Features */}
+          {/* Left Side - Branding & Features (Order 2 on mobile, Order 1 on desktop) */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-8"
+            className="order-2 space-y-8 lg:order-1"
           >
             {/* Logo & Tagline */}
             <div>
@@ -118,11 +118,11 @@ const Auth = () => {
             </div>
           </motion.div>
 
-          {/* Right Side - Auth Forms */}
+          {/* Right Side - Auth Forms (Order 1 on mobile, Order 2 on desktop) */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex items-center justify-center"
+            className="order-1 flex items-center justify-center lg:order-2"
           >
             <div className="w-full max-w-md">
               <div className="rounded-2xl border border-border bg-card p-8 shadow-lg">

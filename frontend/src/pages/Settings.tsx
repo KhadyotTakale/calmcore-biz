@@ -80,7 +80,7 @@ const Settings = () => {
     // Razorpay test mode options
     const options = {
       key: "rzp_test_1DP5mmOlF5G5ag", // Replace with YOUR Razorpay test key
-      amount: 9900, // Amount in paise (₹99 = 9900 paise)
+      amount: 200000, // Amount in paise (₹99 = 9900 paise)
       currency: "INR",
       name: "Elegant Pro",
       description: "Premium Subscription - Monthly",
@@ -130,10 +130,7 @@ const Settings = () => {
           icon: User,
           label: "Profile",
           description: "Manage your account details",
-          onClick: () => {
-            // TODO: Navigate to profile page
-            console.log("Navigate to profile");
-          },
+          onClick: () => navigate("/profile"),
         },
         {
           icon: Building2,
@@ -310,7 +307,7 @@ const Settings = () => {
               </p>
               <div className="flex items-center gap-2 mb-4">
                 <span className="font-mono text-2xl font-bold text-primary">
-                  ₹99
+                  ₹2000
                 </span>
                 <span className="text-sm text-muted-foreground">/month</span>
               </div>

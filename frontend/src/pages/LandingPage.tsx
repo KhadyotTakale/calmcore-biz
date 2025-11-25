@@ -382,7 +382,7 @@ const LandingPage = () => {
                 </p>
                 <div className="flex items-baseline justify-center gap-2">
                   <span className="font-mono text-5xl font-bold text-primary">
-                    ₹99
+                    ₹2000
                   </span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
