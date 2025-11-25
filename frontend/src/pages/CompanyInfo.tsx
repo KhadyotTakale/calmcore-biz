@@ -242,26 +242,26 @@ const CompanyInfo = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-28">
       <div className="mx-auto max-w-4xl p-4 md:p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-6 animate-fadeIn">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="mb-4 md:mb-6 animate-fadeIn">
+          <div className="flex items-start gap-3 md:gap-4 mb-4">
             {hasShop && (
               <button
                 onClick={() => navigate("/home")}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition-all hover:shadow-md"
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm transition-all hover:shadow-md"
               >
                 <ArrowLeft className="h-5 w-5 text-gray-700" />
               </button>
             )}
-            <div>
-              <div className="flex items-center gap-2">
-                <Building2 className="h-6 w-6 text-blue-600" />
-                <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Building2 className="h-5 w-5 md:h-6 md:w-6 text-blue-600 flex-shrink-0" />
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 break-words">
                   {hasShop
                     ? "Your Company Profile"
                     : "Create Your Company Profile"}
                 </h1>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-xs md:text-sm text-gray-600">
                 {hasShop
                   ? "View your company details"
                   : "Welcome! Set up your company profile to get started"}
@@ -271,50 +271,52 @@ const CompanyInfo = () => {
 
           {/* Success/Error Messages */}
           {success && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-4 text-green-800 animate-slideDown">
-              <CheckCircle className="h-5 w-5" />
-              <span className="font-medium">
+            <div className="flex items-start gap-2 rounded-lg bg-green-50 border border-green-200 p-3 md:p-4 text-green-800 animate-slideDown">
+              <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <span className="text-sm md:text-base font-medium">
                 Shop created successfully! Redirecting to home...
               </span>
             </div>
           )}
 
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 animate-slideDown">
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium">{error}</span>
+            <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-3 md:p-4 text-red-800 animate-slideDown">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <span className="text-sm md:text-base font-medium break-words">
+                {error}
+              </span>
             </div>
           )}
         </div>
 
         {/* Logo Upload */}
         <div
-          className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
+          className="mb-4 md:mb-6 rounded-xl md:rounded-2xl border border-gray-200 bg-white p-4 md:p-6 shadow-sm animate-fadeIn"
           style={{ animationDelay: "0.1s" }}
         >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          <h2 className="mb-4 text-base md:text-lg font-semibold text-gray-900">
             Company Logo
           </h2>
-          <div className="flex items-start gap-6">
-            <div className="relative flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-6">
+            <div className="relative flex-shrink-0 w-full sm:w-auto">
               {logoPreview ? (
-                <div className="max-w-xs rounded-xl border-2 border-gray-200 bg-white p-3">
+                <div className="w-full sm:max-w-xs rounded-xl border-2 border-gray-200 bg-white p-3">
                   <img
                     src={logoPreview}
                     alt="Company Logo"
-                    className="max-h-32 w-auto object-contain"
+                    className="max-h-32 w-full sm:w-auto object-contain"
                   />
                 </div>
               ) : (
-                <div className="h-32 w-48 rounded-xl bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
+                <div className="h-32 w-full sm:w-48 rounded-xl bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
                   <Building2 className="h-10 w-10 text-gray-400" />
                 </div>
               )}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 w-full sm:w-auto">
               <label
                 htmlFor="logo-upload"
-                className={`inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 ${
+                className={`inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-blue-700 w-full sm:w-auto ${
                   hasShop ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                 }`}
               >
@@ -329,11 +331,11 @@ const CompanyInfo = () => {
                 disabled={hasShop}
                 className="hidden"
               />
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-gray-500 break-words">
                 Accepts any logo size or aspect ratio. Recommended minimum
                 height: 200px
               </p>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 break-words">
                 PNG, JPG, SVG supported. Max file size: 5MB
               </p>
             </div>
@@ -342,10 +344,10 @@ const CompanyInfo = () => {
 
         {/* Basic Information */}
         <div
-          className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
+          className="mb-4 md:mb-6 rounded-xl md:rounded-2xl border border-gray-200 bg-white p-4 md:p-6 shadow-sm animate-fadeIn"
           style={{ animationDelay: "0.2s" }}
         >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          <h2 className="mb-4 text-base md:text-lg font-semibold text-gray-900">
             Basic Information
           </h2>
           <div className="space-y-4">
@@ -360,7 +362,7 @@ const CompanyInfo = () => {
                 onBlur={handleNameBlur}
                 placeholder="e.g., Your Company Name"
                 disabled={hasShop}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 md:px-4 py-2.5 text-sm md:text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -376,7 +378,7 @@ const CompanyInfo = () => {
                 placeholder="Brief description of your business"
                 rows={3}
                 disabled={hasShop}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 md:px-4 py-2.5 text-sm md:text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
               />
             </div>
 
@@ -392,9 +394,9 @@ const CompanyInfo = () => {
                 }
                 placeholder="e.g., yourcompany.com"
                 disabled={hasShop}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 md:px-4 py-2.5 text-sm md:text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1.5 text-xs text-gray-500 break-words">
                 This will be used as your unique identifier in the system
               </p>
             </div>
@@ -407,11 +409,11 @@ const CompanyInfo = () => {
                 type="text"
                 value={formData.slug}
                 onChange={(e) => handleInputChange("slug", e.target.value)}
-                placeholder="e.g., your-company (leave empty for auto-generate)"
+                placeholder="e.g., your-company"
                 disabled={hasShop}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 md:px-4 py-2.5 text-sm md:text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1.5 text-xs text-gray-500 break-words">
                 Optional. Leave empty to auto-generate from company name.
               </p>
             </div>
@@ -420,14 +422,14 @@ const CompanyInfo = () => {
 
         {/* Action Buttons */}
         <div
-          className="space-y-4 animate-fadeIn"
+          className="space-y-3 md:space-y-4 animate-fadeIn"
           style={{ animationDelay: "0.5s" }}
         >
           {!hasShop ? (
             <button
               onClick={handleCreateShop}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm md:text-base font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>
@@ -442,10 +444,10 @@ const CompanyInfo = () => {
               )}
             </button>
           ) : (
-            <div className="flex gap-4">
+            <div className="flex gap-3 md:gap-4">
               <button
                 onClick={() => navigate("/home")}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 transition-all hover:bg-gray-50"
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm md:text-base font-medium text-gray-700 transition-all hover:bg-gray-50"
               >
                 Back to Home
               </button>
