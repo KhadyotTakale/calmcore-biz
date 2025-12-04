@@ -151,135 +151,142 @@ const ItemSelector = ({
       {/* Dropdown */}
       {isOpen && !error && (
         <div className="absolute z-50 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
-          {filteredItems.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              {isLoading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading items...</span>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <Package className="h-8 w-8 text-muted-foreground/50" />
-                  <span>No items found</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="divide-y divide-border">
-                {filteredItems.map((item) => {
-                  const imageUrl =
-                    item._item_images_of_items?.items?.[0]?.display_image;
+          {(() => {
+            // ✅ FILTER OUT DISABLED ITEMS
+            const activeItems = filteredItems.filter(
+              (item) => !item.Is_disabled
+            );
 
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleItemClick(item)}
-                      className="w-full p-3 text-left transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* Item Image */}
-                        {imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={item.title}
-                            className="w-12 h-12 object-cover rounded border border-border flex-shrink-0"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                              const nextSibling = e.currentTarget
-                                .nextElementSibling as HTMLElement;
-                              if (nextSibling) {
-                                nextSibling.style.display = "flex";
-                              }
-                            }}
-                          />
-                        ) : null}
-                        <div
-                          className="w-12 h-12 bg-gray-100 rounded border border-border flex items-center justify-center text-gray-400 text-xs flex-shrink-0"
-                          style={{ display: imageUrl ? "none" : "flex" }}
-                        >
-                          No img
-                        </div>
-
-                        {/* Item Details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="truncate text-sm font-medium text-foreground">
-                              {item.title}
-                            </h4>
-                            {item.sku && (
-                              <span className="flex-shrink-0 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                                {item.sku}
-                              </span>
-                            )}
-                          </div>
-                          {item.description && (
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                              {item.description}
-                            </p>
-                          )}
-                          {item.tags && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {item.tags
-                                .split(",")
-                                .slice(0, 3)
-                                .map((tag, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary"
-                                  >
-                                    {tag.trim()}
-                                  </span>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Price */}
-                        <div className="flex-shrink-0 text-right">
-                          <div className="text-sm font-semibold text-foreground">
-                            ₹{item.price?.toFixed(2) || "0.00"}
-                          </div>
-                          {item.unit && (
-                            <div className="text-xs text-muted-foreground">
-                              per {item.unit}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Load More Button */}
-              {hasMorePages &&
-                !isLoading &&
-                filteredItems.length > 0 &&
-                searchQuery === "" && (
-                  <div className="border-t border-border p-3">
-                    <button
-                      onMouseDown={(e) => {
-                        e.preventDefault(); // Prevent input blur
-                        loadMoreItems(e);
-                      }}
-                      disabled={isLoadingMore}
-                      className="w-full rounded-lg border border-primary bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-all hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoadingMore ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading more...
-                        </div>
-                      ) : (
-                        `Load More Items (Page ${currentPage + 1})`
-                      )}
-                    </button>
+            return activeItems.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                {isLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading items...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Package className="h-8 w-8 text-muted-foreground/50" />
+                    <span>No items found</span>
                   </div>
                 )}
-            </>
-          )}
+              </div>
+            ) : (
+              <>
+                <div className="divide-y divide-border">
+                  {activeItems.map((item) => {
+                    const imageUrl =
+                      item._item_images_of_items?.items?.[0]?.display_image;
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleItemClick(item)}
+                        className="w-full p-3 text-left transition-colors hover:bg-muted focus:bg-muted focus:outline-none"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Item Image */}
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={item.title}
+                              className="w-12 h-12 object-cover rounded border border-border flex-shrink-0"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                const nextSibling = e.currentTarget
+                                  .nextElementSibling as HTMLElement;
+                                if (nextSibling) {
+                                  nextSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="w-12 h-12 bg-gray-100 rounded border border-border flex items-center justify-center text-gray-400 text-xs flex-shrink-0"
+                            style={{ display: imageUrl ? "none" : "flex" }}
+                          >
+                            No img
+                          </div>
+
+                          {/* Item Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="truncate text-sm font-medium text-foreground">
+                                {item.title}
+                              </h4>
+                              {item.sku && (
+                                <span className="flex-shrink-0 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                  {item.sku}
+                                </span>
+                              )}
+                            </div>
+                            {item.description && (
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                {item.description}
+                              </p>
+                            )}
+                            {item.tags && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {item.tags
+                                  .split(",")
+                                  .slice(0, 3)
+                                  .map((tag, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary"
+                                    >
+                                      {tag.trim()}
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Price */}
+                          <div className="flex-shrink-0 text-right">
+                            <div className="text-sm font-semibold text-foreground">
+                              ₹{item.price?.toFixed(2) || "0.00"}
+                            </div>
+                            {item.unit && (
+                              <div className="text-xs text-muted-foreground">
+                                per {item.unit}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Load More Button */}
+                {hasMorePages &&
+                  !isLoading &&
+                  activeItems.length > 0 &&
+                  searchQuery === "" && (
+                    <div className="border-t border-border p-3">
+                      <button
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent input blur
+                          loadMoreItems(e);
+                        }}
+                        disabled={isLoadingMore}
+                        className="w-full rounded-lg border border-primary bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-all hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoadingMore ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading more...
+                          </div>
+                        ) : (
+                          `Load More Items (Page ${currentPage + 1})`
+                        )}
+                      </button>
+                    </div>
+                  )}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

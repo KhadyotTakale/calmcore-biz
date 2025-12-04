@@ -37,6 +37,7 @@ import CompanyInfo from "./pages/CompanyInfo";
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import ManageItems from "./pages/ManageItems";
 
 const queryClient = new QueryClient();
 
@@ -63,14 +64,12 @@ const AuthStateManager = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use refs to track initialization state without causing re-renders
   const hasInitializedRef = useRef(false);
   const isInitializingRef = useRef(false);
   const [hasOwnShop, setHasOwnShop] = useState<boolean | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    // Only run once when user is loaded and not already initialized/initializing
     if (
       !isLoaded ||
       !user ||
@@ -81,16 +80,13 @@ const AuthStateManager = ({ children }: { children: React.ReactNode }) => {
     }
 
     const initializeAuth = async () => {
-      // Mark as initializing immediately to prevent duplicate runs
       isInitializingRef.current = true;
       setIsInitializing(true);
 
       console.log("[App] 🚀 Starting auth initialization for user:", user.id);
 
-      // Set clerk user ID (this also triggers token restoration from localStorage)
       authManager.setClerkUserId(user.id);
 
-      // CRITICAL: Don't trust localStorage blindly - always verify with API
       const existingToken = authManager.getCustomerAuthToken();
       const shopId = localStorage.getItem("shopId");
 
@@ -100,10 +96,10 @@ const AuthStateManager = ({ children }: { children: React.ReactNode }) => {
         tokenPreview: existingToken?.substring(0, 20) + "...",
       });
 
-      // ALWAYS verify token with API - don't trust localStorage
       console.log("[App] 🔄 Verifying token and shop ownership with API");
 
       try {
+        // This will now auto-create shop if user doesn't have one
         const data = await initializeCustomer(
           user.id,
           user.primaryEmailAddress?.emailAddress || "",
@@ -112,14 +108,9 @@ const AuthStateManager = ({ children }: { children: React.ReactNode }) => {
 
         console.log("[App] ✅ Customer initialized");
         console.log("[App] Has own shop:", data.hasOwnShop);
-        console.log(
-          "[App] Auth token:",
-          data.authToken === "" ? "EMPTY (no shop)" : "EXISTS (has shop)"
-        );
 
-        // CRITICAL: Use hasOwnShop flag to determine if user has their own shop
         if (data.hasOwnShop) {
-          // User has their own shop with proper token
+          // User has their own shop (either existing or newly created)
           console.log("[App] ✅ User has own shop with valid token");
           setHasOwnShop(true);
 
@@ -130,27 +121,29 @@ const AuthStateManager = ({ children }: { children: React.ReactNode }) => {
             localStorage.setItem("shopId", apiShopId);
           }
 
-          // If user is on company-info page but has shop, redirect to home
+          // Redirect to home if on company-info page
           if (location.pathname === "/company-info") {
             console.log(
               "[App] User has shop but on /company-info, redirecting to /home"
             );
             navigate("/home", { replace: true });
           }
+          // Also redirect if on landing page or auth page
+          else if (location.pathname === "/" || location.pathname === "/auth") {
+            console.log("[App] Redirecting authenticated user to /home");
+            navigate("/home", { replace: true });
+          }
         } else {
-          // User doesn't have their own shop - must create one first
-          console.log("[App] ⚠️  User doesn't have own shop");
+          // Shop auto-creation failed - redirect to company-info for manual creation
           console.log(
-            "[App] Clearing stale shop ID and ensuring on /company-info"
+            "[App] ⚠️  Auto-shop creation failed, manual setup needed"
           );
           setHasOwnShop(false);
 
-          // Clear any stale shop ID
           localStorage.removeItem("shopId");
 
-          // Redirect to company-info if not already there
           if (location.pathname !== "/company-info") {
-            console.log("[App] Redirecting to /company-info");
+            console.log("[App] Redirecting to /company-info for manual setup");
             navigate("/company-info", { replace: true });
           }
         }
@@ -161,11 +154,9 @@ const AuthStateManager = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.error("[App] ❌ Failed to initialize customer:", error);
 
-        // Clear any stale data on error
         authManager.clearToken();
         localStorage.removeItem("shopId");
 
-        // Reset the refs so user can try again
         hasInitializedRef.current = false;
         isInitializingRef.current = false;
         setHasOwnShop(null);
@@ -373,6 +364,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manage-items"
+                element={
+                  <ProtectedRoute>
+                    <ManageItems />
                   </ProtectedRoute>
                 }
               />

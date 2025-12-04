@@ -40,7 +40,7 @@ const Auth = () => {
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
-            className="order-2 space-y-8 lg:order-1"
+            className="order-2 space-y-8 lg:order-1 hidden lg:block"
           >
             {/* Logo & Tagline */}
             <div>

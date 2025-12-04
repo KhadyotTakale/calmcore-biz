@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronRight,
   CreditCard,
+  Package,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
@@ -137,6 +138,12 @@ const Settings = () => {
           label: "Company Info",
           description: "Business details and branding",
           onClick: () => navigate("/company-info"),
+        },
+        {
+          icon: Package,
+          label: "Manage Items",
+          description: "Add and manage inventory items",
+          onClick: () => navigate("/manage-items"),
         },
       ],
     },

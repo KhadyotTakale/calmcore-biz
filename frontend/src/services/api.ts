@@ -305,6 +305,68 @@ export interface Lead {
   _leads_assignment_of_shops_of_leads?: any[];
 }
 
+export interface ShopSettings {
+  logo_url: string;
+  company_name: string;
+  address: string;
+  email: string;
+  phone: string;
+  declaration: string;
+  bank_details: {
+    beneficiary_name: string;
+    account_number: string;
+    bank_name: string;
+    branch: string;
+    ifsc_code: string;
+  };
+  signature: string;
+}
+
+export interface ShopInfoPayload {
+  seo_script_text: string;
+  contact_info: Record<string, any>;
+  shops_settings: ShopSettings;
+}
+
+export interface CreateItemRequest {
+  item_type: string;
+  Is_disabled: boolean;
+  title: string;
+  description: string;
+  SEO_Tags: string;
+  tags: string;
+  price: number;
+  unit: string;
+  currency: string;
+  sku: string;
+  rank: number;
+  min_quantity: number;
+  item_attributes?: Record<string, any>;
+}
+
+export interface ItemResponse {
+  id: number;
+  slug: string;
+  shops_id: string;
+  item_type: string;
+  Is_disabled: boolean;
+  created_at: number;
+  title: string;
+  description: string;
+  SEO_Tags: string;
+  tags: string;
+  price: number;
+  unit: string;
+  currency: string;
+  sku: string;
+  item_info: any;
+  rank: number;
+  min_quantity: number;
+  item_attributes: any;
+  customers_id: string;
+  modified_by_id: string;
+}
+
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
@@ -548,17 +610,15 @@ export async function initializeCustomer(
       length: data.authToken?.length || 0,
     });
 
-    // CRITICAL: Check if authToken is a NON-EMPTY string
-    // Empty string "" means user exists but doesn't have their own shop
+    // Check if user has their own shop
     const hasOwnShop = !!(data.authToken && data.authToken.trim() !== "");
 
     if (hasOwnShop) {
-      // User has their OWN shop - save the shop-specific token
+      // User already has their own shop - save the shop-specific token
       authManager.setCustomerAuthToken(data.authToken);
       console.log(
         "[Customer] ✅ User has own shop - SHOP-SPECIFIC token saved"
       );
-      console.log("[Customer] This token gives access to user's OWN data");
 
       // Save shop ID if available
       if (data.customer?._shops?.id) {
@@ -569,16 +629,83 @@ export async function initializeCustomer(
         );
       }
     } else {
-      // User doesn't have their own shop yet
+      // NEW: User doesn't have shop - create one automatically
       console.log(
-        "[Customer] ℹ️  User doesn't have own shop (authToken is empty)"
+        "[Customer] ℹ️  User doesn't have own shop - creating automatically"
       );
-      console.log("[Customer] Saving TEMPORARY token for shop creation only");
 
-      // Save temp token so user can access /company-info and create shop
-      authManager.setCustomerAuthToken(tempAuthToken);
-      console.log("[Customer] ⚠️  Using PARENT SHOP token temporarily");
-      console.log("[Customer] User MUST create shop to get their own token");
+      // Generate shop slug from user's name
+      const shopSlug = fullName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      // Create shop with user's name
+      const shopPayload: CreateShopRequest = {
+        name: fullName,
+        description: `${fullName}'s Business`,
+        logo: "", // Empty logo initially
+        custom_domain: shopSlug,
+        Is_visible: 1,
+        slug: shopSlug,
+      };
+
+      console.log(
+        "[Customer] 📝 Step 4: Auto-creating shop with name:",
+        fullName
+      );
+
+      try {
+        const createdShop = await createShop(shopPayload);
+        console.log("[Customer] ✅ Shop auto-created:", createdShop.id);
+
+        // Save shop ID
+        localStorage.setItem("shopId", createdShop.id);
+
+        // IMPORTANT: Now fetch customer data again to get the NEW shop-specific token
+        console.log(
+          "[Customer] 📝 Step 5: Re-fetching customer data to get shop token"
+        );
+
+        const refreshedResponse = await fetch(`${BASE_URL}/customer`, {
+          headers,
+        });
+
+        if (!refreshedResponse.ok) {
+          throw new Error(
+            `Failed to refresh customer data: ${refreshedResponse.status}`
+          );
+        }
+
+        const refreshedData = await refreshedResponse.json();
+
+        console.log(
+          "[Customer] ✅ Got refreshed customer data with shop token"
+        );
+
+        // Save the NEW shop-specific token
+        authManager.setCustomerAuthToken(refreshedData.authToken);
+        console.log(
+          "[Customer] ✅ Shop-specific token saved after auto-creation"
+        );
+
+        // Return the refreshed data
+        return {
+          ...refreshedData,
+          hasOwnShop: true,
+        };
+      } catch (shopError) {
+        console.error("[Customer] ❌ Failed to auto-create shop:", shopError);
+
+        // Fallback: Save temp token and let user create shop manually
+        authManager.setCustomerAuthToken(tempAuthToken);
+        console.log("[Customer] ⚠️  Falling back to manual shop creation");
+
+        return {
+          ...data,
+          hasOwnShop: false,
+        };
+      }
     }
 
     return {
@@ -692,6 +819,74 @@ export async function getItems(
     {},
     true,
     true // Use customer auth
+  );
+}
+
+export async function createItem(
+  data: CreateItemRequest
+): Promise<ItemResponse> {
+  return apiFetch<ItemResponse>(
+    "/items",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    true, // useItemsBookingsUrl = true (uses ITEMS_BOOKINGS_URL)
+    true // useCustomerAuth = true (includes auth token)
+  );
+}
+
+// UPDATE item - Uses ITEMS_BOOKINGS_URL
+export async function updateItem(
+  itemId: number,
+  data: Partial<CreateItemRequest>
+): Promise<ItemResponse> {
+  return apiFetch<ItemResponse>(
+    `/items/${itemId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    true, // useItemsBookingsUrl = true
+    true // useCustomerAuth = true
+  );
+}
+
+// SOFT DELETE item (set Is_disabled = true) - Uses ITEMS_BOOKINGS_URL
+export async function deleteItem(itemId: number): Promise<ItemResponse> {
+  return apiFetch<ItemResponse>(
+    `/items/${itemId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ Is_disabled: true }),
+    },
+    true, // useItemsBookingsUrl = true
+    true // useCustomerAuth = true
+  );
+}
+
+// RESTORE item (set Is_disabled = false) - Uses ITEMS_BOOKINGS_URL
+export async function restoreItem(itemId: number): Promise<ItemResponse> {
+  return apiFetch<ItemResponse>(
+    `/items/${itemId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ Is_disabled: false }),
+    },
+    true, // useItemsBookingsUrl = true
+    true // useCustomerAuth = true
+  );
+}
+
+// GET /items_all - Get all items (already exists, just update if needed)
+export async function getAllItemsSimple(): Promise<
+  PaginatedResponse<ItemResponse>
+> {
+  return apiFetch<PaginatedResponse<ItemResponse>>(
+    "/items_all",
+    {},
+    true, // useItemsBookingsUrl = true
+    true // useCustomerAuth = true
   );
 }
 
@@ -944,6 +1139,27 @@ export async function createShop(data: CreateShopRequest): Promise<Shop> {
     "/shops",
     {
       method: "POST",
+      body: JSON.stringify(data),
+    },
+    true,
+    true
+  );
+}
+
+// shop info
+
+export async function getShopInfo(): Promise<ShopInfoPayload> {
+  return apiFetch<ShopInfoPayload>("/shop_info", {}, true, true);
+}
+
+// PATCH shop info - Uses ITEMS_BOOKINGS_URL
+export async function updateShopInfo(
+  data: ShopInfoPayload
+): Promise<ShopInfoPayload> {
+  return apiFetch<ShopInfoPayload>(
+    "/shop_info",
+    {
+      method: "PATCH",
       body: JSON.stringify(data),
     },
     true,
@@ -1224,6 +1440,11 @@ export default {
   getItems,
   searchItems,
   itemsCache,
+  createItem,
+  getAllItemsSimple,
+  updateItem,
+  deleteItem,
+  restoreItem,
 
   // Customers
   getCustomer,
@@ -1249,6 +1470,8 @@ export default {
   // Shops
   getCurrentShop,
   createShop,
+  getShopInfo,
+  updateShopInfo,
 
   // Storage
   saveEstimateToStorage,

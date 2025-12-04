@@ -382,7 +382,7 @@ const Reports = () => {
                 title: "All Estimates",
                 description: `${stats.totalEstimates} estimates created`,
                 gradient: "from-primary/10 to-primary/5",
-                onclick: () => navigate("/transactions"),
+                onclick: () => navigate("/estimates"),
               },
               {
                 title: "All Invoices",
