@@ -539,7 +539,7 @@ const Invoices = () => {
                       : "Start creating invoices to see them here"}
                   </p>
                   <button
-                    onClick={() => navigate("/generate-invoice")}
+                    onClick={() => navigate("/invoices/new")}
                     className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-all hover:bg-secondary/90"
                   >
                     Create Your First Invoice

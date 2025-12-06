@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { FileText } from "lucide-react";
 import {
   Loader2,
@@ -17,19 +16,54 @@ import {
   IndianRupee,
 } from "lucide-react";
 import { getBookings } from "@/services/api";
-import html2pdf from "html2pdf.js";
+import { usePDFGenerator } from "@/hooks/usePDFGenerator";
+import { useDebounce } from "@/hooks/useDebounce";
 
-const TransactionCard = ({ booking, delay = 0 }) => {
-  const navigate = useNavigate();
+// ============================================================================
+// TYPES
+// ============================================================================
 
-  // Extract booking data
+interface BookingData {
+  id: number;
+  booking_slug: string;
+  created_at: number;
+  _booking_items_of_bookings?: {
+    items: any[];
+  };
+  _customers?: any;
+}
+
+interface NormalizedBooking {
+  id: number;
+  bookingSlug: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  estimateNumber: string;
+  estimateDate: string;
+  formattedDate: string;
+  validUntil: string;
+  itemsCount: number;
+  subtotal: number;
+  discount: number;
+  cgst: number;
+  sgst: number;
+  totalAmount: number;
+  status: "active" | "expired";
+  items: any[];
+}
+
+// ============================================================================
+// DATA NORMALIZATION (Extract once, use everywhere)
+// ============================================================================
+
+const normalizeBooking = (booking: BookingData): NormalizedBooking => {
   const items = booking._booking_items_of_bookings?.items || [];
-  const customer = booking._customers;
   const firstItem = items[0];
   const bookingInfo = firstItem?.booking_items_info;
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const customer = booking._customers;
 
-  // Get customer info from booking_items_info or _customers
+  // Extract customer info
   const customerName =
     bookingInfo?.customer_info?.name || customer?.Full_name || "Guest Customer";
   const customerPhone =
@@ -37,27 +71,27 @@ const TransactionCard = ({ booking, delay = 0 }) => {
   const customerEmail =
     bookingInfo?.customer_info?.email || customer?.email || "";
 
-  // Calculate total amount
+  // Calculate amounts
   const subtotal = items.reduce((sum, item) => {
     const quantity = item.quantity || 1;
     const price = parseFloat(item.price) || item._items?.price || 0;
     return sum + quantity * price;
   }, 0);
 
-  // Get tax rates from saved data (use defaults if not saved)
+  // Tax info
   const taxInfo = bookingInfo?.tax_info || {};
   const discount = taxInfo.discount || 0;
   const cgst = taxInfo.cgst || 9;
   const sgst = taxInfo.sgst || 9;
 
-  // Calculate total with tax
+  // Calculate total
   const discountAmount = (subtotal * discount) / 100;
   const taxableAmount = subtotal - discountAmount;
   const cgstAmount = (taxableAmount * cgst) / 100;
   const sgstAmount = (taxableAmount * sgst) / 100;
   const totalAmount = taxableAmount + cgstAmount + sgstAmount;
 
-  // Get estimate details
+  // Estimate details
   const estimateNumber =
     bookingInfo?.estimate_details?.estimateNumber ||
     `EST-${booking.id.toString().slice(-6)}`;
@@ -66,158 +100,94 @@ const TransactionCard = ({ booking, delay = 0 }) => {
     new Date(booking.created_at).toISOString().split("T")[0];
   const validUntil = bookingInfo?.estimate_details?.validUntil || "";
 
-  // Format date
   const formattedDate = new Date(estimateDate).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 
-  const handleDownload = (e) => {
-    e.stopPropagation();
-    window.open(`/estimate-preview?id=${booking.booking_slug}`, "_blank");
+  // Status
+  const now = new Date();
+  const validDate = validUntil ? new Date(validUntil) : null;
+  const status = validDate && validDate < now ? "expired" : "active";
+
+  return {
+    id: booking.id,
+    bookingSlug: booking.booking_slug,
+    customerName,
+    customerPhone,
+    customerEmail,
+    estimateNumber,
+    estimateDate,
+    formattedDate,
+    validUntil,
+    itemsCount: items.length,
+    subtotal,
+    discount,
+    cgst,
+    sgst,
+    totalAmount,
+    status,
+    items,
   };
+};
 
-  const handleSendToCustomer = async (e) => {
-    e.stopPropagation();
+// ============================================================================
+// TRANSACTION CARD COMPONENT (Memoized)
+// ============================================================================
 
-    try {
-      setIsGeneratingPDF(true);
+interface TransactionCardProps {
+  booking: NormalizedBooking;
+}
 
-      const phone = customerPhone.replace(/\D/g, "");
-      const estimateUrl = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
+const TransactionCard = memo(({ booking }: TransactionCardProps) => {
+  const navigate = useNavigate();
+  const { generateAndDownloadPDF, isGenerating } = usePDFGenerator();
 
-      // Step 1: Generate and download PDF
-      // Create a hidden iframe to load the estimate
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      document.body.appendChild(iframe);
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      window.open(`/estimate-preview?id=${booking.bookingSlug}`, "_blank");
+    },
+    [booking.bookingSlug]
+  );
 
-      // Wait for iframe to load
-      await new Promise((resolve, reject) => {
-        iframe.onload = resolve;
-        iframe.onerror = reject;
-        iframe.src = estimateUrl;
+  const handleSendToCustomer = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+
+      if (booking.customerPhone === "N/A") return;
+
+      await generateAndDownloadPDF({
+        bookingSlug: booking.bookingSlug,
+        customerName: booking.customerName,
+        customerPhone: booking.customerPhone,
+        estimateNumber: booking.estimateNumber,
+        totalAmount: booking.totalAmount,
+        validUntil: booking.validUntil,
       });
+    },
+    [booking, generateAndDownloadPDF]
+  );
 
-      // Wait for content to render
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+  const handleCardClick = useCallback(() => {
+    navigate(`/estimate-preview?id=${booking.bookingSlug}`);
+  }, [navigate, booking.bookingSlug]);
 
-      // Generate PDF from iframe content
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-      const pdfFilename = `Estimate_${estimateNumber}_${customerName.replace(
-        /\s+/g,
-        "_"
-      )}.pdf`;
-
-      const opt = {
-        margin: 0,
-        filename: pdfFilename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-        },
-        jsPDF: {
-          unit: "mm",
-          format: "a4",
-          orientation: "portrait",
-        },
-      };
-
-      // Generate and download PDF
-      await html2pdf().set(opt).from(iframeDoc.body).save();
-
-      // Clean up iframe
-      document.body.removeChild(iframe);
-
-      setIsGeneratingPDF(false);
-
-      // Step 2: Wait a moment for download to start
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Step 3: Show instruction modal and open WhatsApp
-      const userConfirmed = confirm(
-        `✅ PDF Downloaded: ${pdfFilename}\n\n` +
-          `📱 Next Steps:\n` +
-          `1. WhatsApp will open in a new tab\n` +
-          `2. Click the 📎 (attach) button in WhatsApp\n` +
-          `3. Select "Document" and attach the downloaded PDF\n` +
-          `4. Send the message!\n\n` +
-          `Click OK to open WhatsApp`
-      );
-
-      if (userConfirmed) {
-        // Step 4: Open WhatsApp with helpful message
-        const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${
-          validUntil
-            ? `✅ Valid until: ${new Date(validUntil).toLocaleDateString(
-                "en-IN"
-              )}\n`
-            : ""
-        }💰 Total Amount: ₹${totalAmount.toFixed(
-          2
-        )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
-
-        const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
-          message
-        )}`;
-
-        window.open(whatsappUrl, "_blank");
-      }
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      setIsGeneratingPDF(false);
-      alert(
-        "❌ Failed to generate PDF. Please try again or use the Download button."
-      );
-    }
-  };
-
-  const handleCardClick = () => {
-    navigate(`/estimate-preview?id=${booking.booking_slug}`);
-  };
-
-  const handleConvertToInvoice = (e) => {
-    e.stopPropagation();
-    navigate(`/invoice-preview?id=${booking.booking_slug}`);
-  };
-
-  // Get status badge
-  const getStatusBadge = () => {
-    const now = new Date();
-    const validDate = validUntil ? new Date(validUntil) : null;
-
-    if (validDate && validDate < now) {
-      return (
-        <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
-          Expired
-        </span>
-      );
-    }
-    return (
-      <span className="rounded-full bg-success/10 px-2 py-1 text-xs font-medium text-success">
-        Active
-      </span>
-    );
-  };
+  const handleConvertToInvoice = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      navigate(`/invoice-preview?id=${booking.bookingSlug}`);
+    },
+    [navigate, booking.bookingSlug]
+  );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay }}
+    <div
       onClick={handleCardClick}
-      className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+      className="transaction-card group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer"
     >
-      {/* Header with gradient */}
+      {/* Header */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -226,26 +196,36 @@ const TransactionCard = ({ booking, delay = 0 }) => {
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-lg">
-                {customerName}
+                {booking.customerName}
               </h3>
               <p className="text-xs text-muted-foreground font-mono">
-                {estimateNumber}
+                {booking.estimateNumber}
               </p>
             </div>
           </div>
-          {getStatusBadge()}
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-medium ${
+              booking.status === "expired"
+                ? "bg-destructive/10 text-destructive"
+                : "bg-success/10 text-success"
+            }`}
+          >
+            {booking.status === "expired" ? "Expired" : "Active"}
+          </span>
         </div>
 
         {/* Info Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{formattedDate}</span>
+            <span className="text-muted-foreground">
+              {booking.formattedDate}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">
-              {items.length} item{items.length !== 1 ? "s" : ""}
+              {booking.itemsCount} item{booking.itemsCount !== 1 ? "s" : ""}
             </span>
           </div>
         </div>
@@ -253,11 +233,11 @@ const TransactionCard = ({ booking, delay = 0 }) => {
 
       {/* Content */}
       <div className="p-4 space-y-3">
-        {/* Phone Number */}
+        {/* Phone */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Phone</span>
           <span className="text-sm font-medium text-foreground">
-            {customerPhone}
+            {booking.customerPhone}
           </span>
         </div>
 
@@ -269,7 +249,7 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           <div className="flex items-center gap-1">
             <IndianRupee className="h-4 w-4 text-primary" />
             <span className="text-xl font-bold text-primary">
-              {totalAmount.toLocaleString("en-IN", {
+              {booking.totalAmount.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -277,50 +257,114 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="grid grid-cols-3 gap-2 pt-3">
-          <button
-            onClick={handleDownload}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted"
-          >
+          <button onClick={handleDownload} className="btn-secondary">
             <Download className="h-4 w-4" />
             Download
           </button>
           <button
             onClick={handleSendToCustomer}
-            disabled={customerPhone === "N/A" || isGeneratingPDF}
-            className="flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={booking.customerPhone === "N/A" || isGenerating}
+            className="btn-success"
           >
-            {isGeneratingPDF ? (
+            {isGenerating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
-            {isGeneratingPDF ? "Generating..." : "Send"}
+            {isGenerating ? "Sending..." : "Send"}
           </button>
-          <button
-            onClick={handleConvertToInvoice}
-            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
-          >
+          <button onClick={handleConvertToInvoice} className="btn-primary">
             <FileText className="h-4 w-4" />
             Invoice
           </button>
         </div>
       </div>
 
-      {/* Hover effect overlay */}
+      {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-    </motion.div>
+    </div>
   );
-};
+});
+
+TransactionCard.displayName = "TransactionCard";
+
+// ============================================================================
+// STATS COMPONENT (Memoized)
+// ============================================================================
+
+interface StatsProps {
+  totalTransactions: number;
+  totalAmount: number;
+  customersCount: number;
+}
+
+const TransactionStats = memo(
+  ({ totalTransactions, totalAmount, customersCount }: StatsProps) => (
+    <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div className="stat-card stat-primary">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Estimates</p>
+            <p className="text-2xl font-bold text-foreground">
+              {totalTransactions}
+            </p>
+          </div>
+          <div className="rounded-xl bg-primary/10 p-3">
+            <TrendingUp className="h-6 w-6 text-primary" />
+          </div>
+        </div>
+      </div>
+
+      <div className="stat-card stat-success">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Amount</p>
+            <p className="text-2xl font-bold text-foreground font-mono">
+              ₹{totalAmount.toLocaleString("en-IN")}
+            </p>
+          </div>
+          <div className="rounded-xl bg-success/10 p-3">
+            <IndianRupee className="h-6 w-6 text-success" />
+          </div>
+        </div>
+      </div>
+
+      <div className="stat-card stat-warning">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Customers</p>
+            <p className="text-2xl font-bold text-foreground">
+              {customersCount}
+            </p>
+          </div>
+          <div className="rounded-xl bg-warning/10 p-3">
+            <User className="h-6 w-6 text-warning" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+);
+
+TransactionStats.displayName = "TransactionStats";
+
+// ============================================================================
+// MAIN TRANSACTIONS COMPONENT
+// ============================================================================
 
 const Transactions = () => {
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState([]);
+  const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Debounce search for better performance
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Fetch bookings
   useEffect(() => {
     fetchBookings();
   }, []);
@@ -330,118 +374,74 @@ const Transactions = () => {
       setLoading(true);
       setError(null);
 
-      const response = await getBookings(1, 100); // Fetch more to filter
+      const response = await getBookings(1, 100);
 
-      console.log("Total bookings fetched:", response.items.length);
-
-      // Filter only estimates (document_type = "estimate")
-      const estimateBookings = response.items.filter((booking) => {
+      // Filter estimates only
+      const estimateBookings = response.items.filter((booking: BookingData) => {
         const items = booking._booking_items_of_bookings?.items || [];
         const firstItem = items[0];
         const bookingInfo = firstItem?.booking_items_info;
         const docType = bookingInfo?.document_type;
-
-        console.log("Booking ID:", booking.id, "Document Type:", docType);
-
-        // Include if document_type is "estimate" OR if it's not set (legacy estimates)
         return docType === "estimate" || !docType;
       });
 
-      console.log("Filtered estimates:", estimateBookings.length);
-
       setBookings(estimateBookings);
       setLoading(false);
-    } catch (err) {
-      console.error("Error fetching bookings:", err);
+    } catch (err: any) {
       setError(err.message || "Failed to load transactions");
       setLoading(false);
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchBookings();
-  };
+  }, []);
 
-  // Filter bookings based on search query
-  const filteredBookings = bookings.filter((booking) => {
-    const items = booking._booking_items_of_bookings?.items || [];
-    const firstItem = items[0];
-    const bookingInfo = firstItem?.booking_items_info;
-    const customer = booking._customers;
+  // Normalize bookings (memoized)
+  const normalizedBookings = useMemo(
+    () => bookings.map(normalizeBooking),
+    [bookings]
+  );
 
-    const customerName = (
-      bookingInfo?.customer_info?.name ||
-      customer?.Full_name ||
-      ""
-    ).toLowerCase();
-    const customerPhone = (
-      bookingInfo?.customer_info?.phone ||
-      customer?.cust_info?.phone ||
-      ""
-    ).toLowerCase();
-    const bookingSlug = (booking.booking_slug || "").toLowerCase();
-    const query = searchQuery.toLowerCase();
+  // Filter bookings (memoized with debounced search)
+  const filteredBookings = useMemo(() => {
+    if (!debouncedSearch) return normalizedBookings;
 
-    return (
-      customerName.includes(query) ||
-      customerPhone.includes(query) ||
-      bookingSlug.includes(query)
+    const query = debouncedSearch.toLowerCase();
+    return normalizedBookings.filter(
+      (booking) =>
+        booking.customerName.toLowerCase().includes(query) ||
+        booking.customerPhone.toLowerCase().includes(query) ||
+        booking.bookingSlug.toLowerCase().includes(query) ||
+        booking.estimateNumber.toLowerCase().includes(query)
     );
-  });
+  }, [normalizedBookings, debouncedSearch]);
 
-  // Calculate statistics with tax
-  const totalAmount = bookings.reduce((sum, booking) => {
-    const items = booking._booking_items_of_bookings?.items || [];
-    const firstItem = items[0];
-    const bookingInfo = firstItem?.booking_items_info;
+  // Calculate statistics (memoized)
+  const stats = useMemo(() => {
+    const totalAmount = normalizedBookings.reduce(
+      (sum, booking) => sum + booking.totalAmount,
+      0
+    );
 
-    // Calculate subtotal
-    const subtotal = items.reduce((itemSum, item) => {
-      const quantity = item.quantity || 1;
-      const price = parseFloat(item.price) || item._items?.price || 0;
-      return itemSum + quantity * price;
-    }, 0);
+    const customersCount = new Set(
+      normalizedBookings
+        .filter((b) => b.customerName !== "Guest Customer")
+        .map((b) => b.customerName)
+    ).size;
 
-    // Get tax rates
-    const taxInfo = bookingInfo?.tax_info || {};
-    const discount = taxInfo.discount || 0;
-    const cgst = taxInfo.cgst || 9;
-    const sgst = taxInfo.sgst || 9;
-
-    // Calculate with tax
-    const discountAmount = (subtotal * discount) / 100;
-    const taxableAmount = subtotal - discountAmount;
-    const cgstAmount = (taxableAmount * cgst) / 100;
-    const sgstAmount = (taxableAmount * sgst) / 100;
-    const bookingTotal = taxableAmount + cgstAmount + sgstAmount;
-
-    return sum + bookingTotal;
-  }, 0);
-
-  const totalTransactions = bookings.length;
-  const customersCount = new Set(
-    bookings
-      .filter((b) => {
-        const items = b._booking_items_of_bookings?.items || [];
-        const bookingInfo = items[0]?.booking_items_info;
-        return bookingInfo?.customer_info?.name || b._customers?.id;
-      })
-      .map((b) => {
-        const items = b._booking_items_of_bookings?.items || [];
-        const bookingInfo = items[0]?.booking_items_info;
-        return bookingInfo?.customer_info?.name || b._customers?.id;
-      })
-  ).size;
+    return {
+      totalTransactions: normalizedBookings.length,
+      totalAmount,
+      customersCount,
+    };
+  }, [normalizedBookings]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-28">
-      <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8 fade-in-fast">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
@@ -455,7 +455,7 @@ const Transactions = () => {
               <button
                 onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50"
+                className="btn-secondary"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -464,7 +464,7 @@ const Transactions = () => {
               </button>
               <button
                 onClick={() => navigate("/generate-estimate")}
-                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-accent to-destructive px-4 py-2 text-sm font-medium text-white shadow-accent hover:shadow-lg transition-all"
+                className="btn-accent"
               >
                 <Plus className="h-4 w-4" />
                 New Estimate
@@ -472,77 +472,15 @@ const Transactions = () => {
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-3 mb-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Estimates
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {totalTransactions}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-primary/10 p-3">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="rounded-2xl bg-gradient-to-br from-success/10 to-success/5 p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-2xl font-bold text-foreground font-mono">
-                    ₹{totalAmount.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-success/10 p-3">
-                  <IndianRupee className="h-6 w-6 text-success" />
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="rounded-2xl bg-gradient-to-br from-warning/10 to-warning/5 p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Customers
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {customersCount}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-warning/10 p-3">
-                  <User className="h-6 w-6 text-warning" />
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          {/* Stats */}
+          <TransactionStats
+            totalTransactions={stats.totalTransactions}
+            totalAmount={stats.totalAmount}
+            customersCount={stats.customersCount}
+          />
 
           {/* Search */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex gap-3"
-          >
+          <div className="flex gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -550,17 +488,17 @@ const Transactions = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by customer name, phone, or booking ID..."
-                className="w-full rounded-xl border border-input bg-background pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="search-input"
               />
             </div>
-            <button className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted">
+            <button className="btn-secondary">
               <Filter className="h-4 w-4" />
               Filter
             </button>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
-        {/* Loading State */}
+        {/* Loading */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -568,69 +506,47 @@ const Transactions = () => {
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error */}
         {error && !loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-center"
-          >
+          <div className="error-state">
             <div className="text-destructive text-4xl mb-2">⚠️</div>
             <h3 className="font-semibold text-foreground mb-2">
               Error Loading Estimates
             </h3>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <button
-              onClick={handleRefresh}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
-            >
+            <button onClick={handleRefresh} className="btn-primary">
               Try Again
             </button>
-          </motion.div>
+          </div>
         )}
 
         {/* Transactions Grid */}
         {!loading && !error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-          >
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredBookings.length > 0 ? (
-              filteredBookings.map((booking, index) => (
-                <TransactionCard
-                  key={booking.id}
-                  booking={booking}
-                  delay={index * 0.05}
-                />
+              filteredBookings.map((booking) => (
+                <TransactionCard key={booking.id} booking={booking} />
               ))
             ) : (
-              <div className="col-span-full">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border border-border bg-card p-12 text-center"
+              <div className="col-span-full empty-state">
+                <div className="text-muted-foreground text-5xl mb-4">📊</div>
+                <h3 className="font-semibold text-foreground mb-2">
+                  No Estimates Found
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {searchQuery
+                    ? "Try adjusting your search query"
+                    : "Start creating estimates to see them here"}
+                </p>
+                <button
+                  onClick={() => navigate("/generate-estimate")}
+                  className="btn-primary"
                 >
-                  <div className="text-muted-foreground text-5xl mb-4">📊</div>
-                  <h3 className="font-semibold text-foreground mb-2">
-                    No Estimates Found
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {searchQuery
-                      ? "Try adjusting your search query"
-                      : "Start creating estimates to see them here"}
-                  </p>
-                  <button
-                    onClick={() => navigate("/generate-estimate")}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
-                  >
-                    Create Your First Estimate
-                  </button>
-                </motion.div>
+                  Create Your First Estimate
+                </button>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
       </div>
     </div>

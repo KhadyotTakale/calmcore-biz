@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -82,9 +82,45 @@ const GenerateInvoice = () => {
     initInvoiceNumber();
   }, []);
 
-  const addItem = () => {
-    setItems([
-      ...items,
+  // ============================================================================
+  // MEMOIZED CALCULATIONS - Only recalculate when dependencies change
+  // ============================================================================
+  const subtotal = useMemo(
+    () => items.reduce((sum, item) => sum + item.amount, 0),
+    [items]
+  );
+
+  const discountAmount = useMemo(
+    () => (subtotal * discount) / 100,
+    [subtotal, discount]
+  );
+
+  const taxableAmount = useMemo(
+    () => subtotal - discountAmount,
+    [subtotal, discountAmount]
+  );
+
+  const cgstAmount = useMemo(
+    () => (taxableAmount * cgst) / 100,
+    [taxableAmount, cgst]
+  );
+
+  const sgstAmount = useMemo(
+    () => (taxableAmount * sgst) / 100,
+    [taxableAmount, sgst]
+  );
+
+  const total = useMemo(
+    () => taxableAmount + cgstAmount + sgstAmount,
+    [taxableAmount, cgstAmount, sgstAmount]
+  );
+
+  // ============================================================================
+  // MEMOIZED CALLBACKS - Prevent function recreation on every render
+  // ============================================================================
+  const addItem = useCallback(() => {
+    setItems((prev) => [
+      ...prev,
       {
         id: Date.now(),
         catalogItemId: null,
@@ -95,17 +131,17 @@ const GenerateInvoice = () => {
         imageUrl: null,
       },
     ]);
-  };
+  }, []);
 
-  const removeItem = (id) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id));
-    }
-  };
+  const removeItem = useCallback((id) => {
+    setItems((prev) =>
+      prev.length > 1 ? prev.filter((item) => item.id !== id) : prev
+    );
+  }, []);
 
-  const updateItem = (id, field, value) => {
-    setItems(
-      items.map((item) => {
+  const updateItem = useCallback((id, field, value) => {
+    setItems((prev) =>
+      prev.map((item) => {
         if (item.id === id) {
           const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "rate") {
@@ -116,11 +152,11 @@ const GenerateInvoice = () => {
         return item;
       })
     );
-  };
+  }, []);
 
-  const handleItemSelect = (selectedItem, itemId) => {
-    setItems(
-      items.map((item) => {
+  const handleItemSelect = useCallback((selectedItem, itemId) => {
+    setItems((prev) =>
+      prev.map((item) => {
         if (item.id === itemId) {
           return {
             ...item,
@@ -135,28 +171,19 @@ const GenerateInvoice = () => {
         return item;
       })
     );
-  };
-
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const discountAmount = (subtotal * discount) / 100;
-  const taxableAmount = subtotal - discountAmount;
-  const cgstAmount = (taxableAmount * cgst) / 100;
-  const sgstAmount = (taxableAmount * sgst) / 100;
-  const total = taxableAmount + cgstAmount + sgstAmount;
+  }, []);
 
   // ============================================================================
-  // VALIDATION FUNCTION - Returns errors array
+  // VALIDATION FUNCTION
   // ============================================================================
-  const validateInvoiceData = () => {
+  const validateInvoiceData = useCallback(() => {
     const errors = [];
 
-    // 1. Customer Name (Required)
     const name = customerInfo.name?.trim();
     if (!name || name.length === 0) {
       errors.push("Customer name is required");
     }
 
-    // 2. Phone (Required + Basic validation)
     const phone = customerInfo.phone?.trim().replace(/\D/g, "");
     if (!phone || phone.length === 0) {
       errors.push("Customer phone number is required");
@@ -164,7 +191,6 @@ const GenerateInvoice = () => {
       errors.push("Phone number must be at least 10 digits");
     }
 
-    // 3. Email (Optional but validate format if provided)
     const email = customerInfo.email?.trim();
     if (
       email &&
@@ -174,7 +200,6 @@ const GenerateInvoice = () => {
       errors.push("Please enter a valid email address");
     }
 
-    // 4. Invoice Number
     if (
       invoiceDetails.invoiceNumber === "Loading..." ||
       !invoiceDetails.invoiceNumber
@@ -182,7 +207,6 @@ const GenerateInvoice = () => {
       errors.push("Invoice number is still loading. Please wait...");
     }
 
-    // 5. Items validation
     const validItems = items.filter(
       (item) =>
         item.catalogItemId &&
@@ -197,16 +221,14 @@ const GenerateInvoice = () => {
     }
 
     return { isValid: errors.length === 0, errors, validItems };
-  };
+  }, [customerInfo, invoiceDetails.invoiceNumber, items]);
 
   // ============================================================================
-  // ENHANCED CREATE INVOICE - WITH VALIDATION & ERROR HANDLING
+  // CREATE INVOICE HANDLER
   // ============================================================================
-  const handleCreateInvoice = async () => {
-    // Clear previous errors
+  const handleCreateInvoice = useCallback(async () => {
     setValidationErrors([]);
 
-    // Validate before proceeding
     const validation = validateInvoiceData();
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
@@ -217,7 +239,6 @@ const GenerateInvoice = () => {
     try {
       setLoading(true);
 
-      // Prepare clean customer data (trim all values)
       const name = customerInfo.name.trim();
       const phone = customerInfo.phone.trim();
       const email = customerInfo.email?.trim() || "";
@@ -236,18 +257,15 @@ const GenerateInvoice = () => {
 
       console.log("📋 Customer data to save:", customerData);
 
-      // Create booking
       const booking = await createBooking();
       console.log("✓ Booking created:", booking.id);
 
-      // Add items sequentially with error tracking
       const itemErrors = [];
 
       for (let i = 0; i < validation.validItems.length; i++) {
         const item = validation.validItems[i];
 
         try {
-          // Add item to booking
           await addBookingItem(booking.id, item.catalogItemId);
           console.log(
             `✓ Added item ${i + 1}/${validation.validItems.length}: ${
@@ -255,9 +273,7 @@ const GenerateInvoice = () => {
             }`
           );
 
-          // Update the item with its data
           if (i === 0) {
-            // FIRST item gets ALL the invoice data
             await updateBookingItem(booking.id, item.catalogItemId, {
               quantity: item.quantity,
               price: item.rate.toString(),
@@ -280,7 +296,6 @@ const GenerateInvoice = () => {
             });
             console.log("✓ First item updated with COMPLETE invoice data");
           } else {
-            // Remaining items get basic data only
             await updateBookingItem(booking.id, item.catalogItemId, {
               quantity: item.quantity,
               price: item.rate.toString(),
@@ -296,7 +311,6 @@ const GenerateInvoice = () => {
         }
       }
 
-      // Check if any items failed
       if (itemErrors.length > 0) {
         throw new Error(
           `Failed to add ${itemErrors.length} item(s):\n${itemErrors.join(
@@ -305,7 +319,6 @@ const GenerateInvoice = () => {
         );
       }
 
-      // Create lead - only if email is provided (non-critical)
       if (customerData.email) {
         try {
           await createLead({
@@ -335,7 +348,6 @@ const GenerateInvoice = () => {
         }
       }
 
-      // Save booking slug and mark as created
       setBookingSlug(booking.booking_slug);
       setInvoiceCreated(true);
 
@@ -355,14 +367,14 @@ const GenerateInvoice = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [validateInvoiceData, customerInfo, invoiceDetails, discount, cgst, sgst]);
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     if (!bookingSlug) return;
     window.open(`/invoice-preview?id=${bookingSlug}`, "_blank");
-  };
+  }, [bookingSlug]);
 
-  const handleSendToCustomer = () => {
+  const handleSendToCustomer = useCallback(() => {
     if (!bookingSlug) return;
 
     const shareableLink = `${window.location.origin}/invoice-preview?id=${bookingSlug}`;
@@ -380,7 +392,13 @@ const GenerateInvoice = () => {
     )}`;
 
     window.open(whatsappUrl, "_blank");
-  };
+  }, [
+    bookingSlug,
+    customerInfo.name,
+    customerInfo.phone,
+    invoiceDetails.dueDate,
+    total,
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/5 pb-28">
@@ -642,7 +660,7 @@ const GenerateInvoice = () => {
               </div>
 
               <div className="space-y-4">
-                {items.map((item, index) => (
+                {items.map((item) => (
                   <div
                     key={item.id}
                     className="space-y-4 rounded-lg border border-border bg-muted/30 p-4"

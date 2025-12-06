@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
-import { getBookingBySlug, getBooking } from "@/services/api";
+import { getBookingBySlug, getBooking, getShopInfo } from "@/services/api";
 
 // Number to words converter
 const numberToWords = (num) => {
@@ -86,6 +86,7 @@ const numberToWords = (num) => {
 
 const InvoicePreview = () => {
   const [invoiceData, setInvoiceData] = useState(null);
+  const [shopInfo, setShopInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -101,16 +102,31 @@ const InvoicePreview = () => {
       }
 
       try {
-        // Get booking by slug
+        console.log("[InvoicePreview] Fetching booking:", bookingSlug);
+
+        // Fetch shop info first
+        let shopData = null;
+        try {
+          const shopInfoResponse = await getShopInfo();
+          shopData = shopInfoResponse.shops_settings;
+          setShopInfo(shopData);
+          console.log("[InvoicePreview] Shop info loaded:", shopData);
+        } catch (shopErr) {
+          console.error("[InvoicePreview] Failed to load shop info:", shopErr);
+          // Continue without shop info - use defaults
+        }
+
+        // Get booking by slug (uses customer auth internally)
         const bookingArray = await getBookingBySlug(bookingSlug);
+
+        console.log("[InvoicePreview] Booking response:", bookingArray);
+
         if (!bookingArray || bookingArray.length === 0) {
           throw new Error("Booking not found");
         }
 
         const booking = bookingArray[0];
         const bookingDetails = await getBooking(booking.id);
-
-        // Get booking items with details
         const bookingItems =
           bookingDetails._booking_items_of_bookings?.items || [];
 
@@ -133,7 +149,6 @@ const InvoicePreview = () => {
         const firstBookingItem = bookingItems[0];
         const savedInvoiceData = firstBookingItem?.booking_items_info || {};
 
-        // Calculate totals using saved tax rates
         const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
         const discount = savedInvoiceData.tax_info?.discount || 0;
         const cgst = savedInvoiceData.tax_info?.cgst || 9;
@@ -148,46 +163,57 @@ const InvoicePreview = () => {
         setInvoiceData({
           customerInfo: {
             name:
-              savedInvoiceData.customer_info?.name ||
-              bookingDetails._customers?.Full_name ||
+              (savedInvoiceData.customer_info?.name &&
+                savedInvoiceData.customer_info.name.trim()) ||
+              (bookingDetails._customers?.Full_name &&
+                bookingDetails._customers.Full_name.trim()) ||
               "Customer",
             email:
-              savedInvoiceData.customer_info?.email ||
-              bookingDetails._customers?.email ||
+              (savedInvoiceData.customer_info?.email &&
+                savedInvoiceData.customer_info.email.trim()) ||
+              (bookingDetails._customers?.email &&
+                bookingDetails._customers.email.trim()) ||
               "",
             phone:
-              savedInvoiceData.customer_info?.phone ||
-              bookingDetails._customers?.cust_info?.phone ||
+              (savedInvoiceData.customer_info?.phone &&
+                savedInvoiceData.customer_info.phone.trim()) ||
+              (bookingDetails._customers?.cust_info?.phone &&
+                bookingDetails._customers.cust_info.phone.trim()) ||
               "",
             address:
-              savedInvoiceData.customer_info?.address ||
-              bookingDetails._customers?.cust_info?.address ||
+              (savedInvoiceData.customer_info?.address &&
+                savedInvoiceData.customer_info.address.trim()) ||
+              (bookingDetails._customers?.cust_info?.address &&
+                bookingDetails._customers.cust_info.address.trim()) ||
               "",
             state:
-              savedInvoiceData.customer_info?.state ||
-              bookingDetails._customers?.cust_info?.state ||
+              (savedInvoiceData.customer_info?.state &&
+                savedInvoiceData.customer_info.state.trim()) ||
+              (bookingDetails._customers?.cust_info?.state &&
+                bookingDetails._customers.cust_info.state.trim()) ||
               "",
             gstin:
-              savedInvoiceData.customer_info?.gstin ||
-              bookingDetails._customers?.cust_info?.gstin ||
+              (savedInvoiceData.customer_info?.gstin &&
+                savedInvoiceData.customer_info.gstin.trim()) ||
+              (bookingDetails._customers?.cust_info?.gstin &&
+                bookingDetails._customers.cust_info.gstin.trim()) ||
               "",
           },
           invoiceDetails: {
             invoiceNumber:
               savedInvoiceData.invoice_details?.invoiceNumber ||
-              // Extract number from EST-001 and convert to INV-001
               (savedInvoiceData.estimate_details?.estimateNumber
                 ? savedInvoiceData.estimate_details.estimateNumber.replace(
                     "EST-",
                     "INV-"
                   )
-                : `INV-${booking.id.toString().padStart(3, "0")}`), // Fallback
+                : `INV-${booking.id}`),
             date:
-              savedInvoiceData.estimate_details?.date || // Use estimate date
+              savedInvoiceData.estimate_details?.date ||
               savedInvoiceData.invoice_details?.date ||
               new Date(booking.created_at).toISOString().split("T")[0],
             dueDate:
-              savedInvoiceData.estimate_details?.validUntil || // Use estimate validUntil as dueDate
+              savedInvoiceData.estimate_details?.validUntil ||
               savedInvoiceData.invoice_details?.dueDate ||
               new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
                 .toISOString()
@@ -289,6 +315,63 @@ const InvoicePreview = () => {
 
   const amountInWords = numberToWords(Math.floor(total)) + " Rupees Only";
 
+  // Helper function to render company header
+  const CompanyHeader = () => (
+    <div className="flex justify-between items-start mb-6">
+      <div>
+        {shopInfo?.logo_url ? (
+          <img
+            src={shopInfo.logo_url}
+            alt={`${shopInfo.company_name || "Company"} Logo`}
+            className="h-14 mb-3 max-w-[200px] object-contain"
+            onError={(e) => {
+              e.target.style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="h-14 mb-3 flex items-center">
+            <p className="text-lg font-bold text-gray-800">
+              {shopInfo?.company_name || "Company Name"}
+            </p>
+          </div>
+        )}
+        <div className="text-xs text-gray-700 space-y-0.5">
+          {shopInfo?.address && (
+            <p>
+              <strong>Address:</strong> {shopInfo.address}
+            </p>
+          )}
+          {shopInfo?.email && (
+            <p>
+              <strong>Email:</strong> {shopInfo.email}
+            </p>
+          )}
+          {shopInfo?.phone && (
+            <p>
+              <strong>Phone:</strong> {shopInfo.phone}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="text-right">
+        <h1 className="text-3xl font-bold text-green-700 mb-2">INVOICE</h1>
+        <div className="text-xs text-gray-600 space-y-0.5">
+          <p>
+            <strong>Invoice #:</strong> {invoiceDetails.invoiceNumber}
+          </p>
+          <p>
+            <strong>Date:</strong>{" "}
+            {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
+          </p>
+          <p>
+            <strong>Due Date:</strong>{" "}
+            {new Date(invoiceDetails.dueDate).toLocaleDateString("en-IN")}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Action Buttons - Hidden when printing */}
@@ -321,47 +404,7 @@ const InvoicePreview = () => {
       {/* PAGE 1 */}
       <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-white p-12 mb-8 print:mb-0 print:page-break-after-always">
         {/* Header */}
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <img
-              src="https://mrudgandh.co.in/wp-content/uploads/2021/11/Mrudugandh_Marathi-Logo_4-300x133.jpg"
-              alt="Mrudgandh Logo"
-              className="h-14 mb-3"
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
-            />
-            <div className="text-xs text-gray-700 space-y-0.5">
-              <p>
-                <strong>Address:</strong> Kodre Farm, Vadgaon Khurd,
-              </p>
-              <p>Behind Rajyog Society, Pune, MH 411068</p>
-              <p>
-                <strong>Email:</strong> teammrudgandh@gmail.com
-              </p>
-              <p>
-                <strong>Phone:</strong> +91 9371711378 / +91 9850567505
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <h1 className="text-3xl font-bold text-green-700 mb-2">INVOICE</h1>
-            <div className="text-xs text-gray-600 space-y-0.5">
-              <p>
-                <strong>Invoice #:</strong>
-                {invoiceDetails.invoiceNumber}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
-              </p>
-              <p>
-                <strong>Due Date:</strong>
-                {new Date(invoiceDetails.dueDate).toLocaleDateString("en-IN")}
-              </p>
-            </div>
-          </div>
-        </div>
+        <CompanyHeader />
 
         {/* Customer Section */}
         <div className="grid grid-cols-3 gap-4 mb-6 border border-gray-800">
@@ -485,63 +528,26 @@ const InvoicePreview = () => {
         {/* Declaration */}
         <div className="mb-6">
           <p className="font-bold text-sm mb-2">Declaration:</p>
-          <ol className="list-decimal list-inside text-xs space-y-1 text-gray-700">
-            <li>
-              I/We declare that this invoice shows the actual price of services
-              described and that all particulars are true and correct.
-            </li>
-            <li>
-              Error and Omission in this invoice shall be subject to the Pune
-              Jurisdiction of Pune City.
-            </li>
-          </ol>
+          {shopInfo?.declaration ? (
+            <p className="text-xs text-gray-700 whitespace-pre-line">
+              {shopInfo.declaration}
+            </p>
+          ) : (
+            <ol className="list-decimal list-inside text-xs space-y-1 text-gray-700">
+              <li>
+                I/We declare that this invoice shows the actual price of
+                services described and that all particulars are true and
+                correct.
+              </li>
+            </ol>
+          )}
         </div>
       </div>
 
       {/* PAGE 2 */}
       <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-white p-12 print:page-break-before-always">
         {/* Header */}
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <img
-              src="https://mrudgandh.co.in/wp-content/uploads/2021/11/Mrudugandh_Marathi-Logo_4-300x133.jpg"
-              alt="Mrudgandh Logo"
-              className="h-14 mb-3"
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
-            />
-            <div className="text-xs text-gray-700 space-y-0.5">
-              <p>
-                <strong>Address:</strong> Kodre Farm, Vadgaon Khurd,
-              </p>
-              <p>Behind Rajyog Society, Pune, MH 411068</p>
-              <p>
-                <strong>Email:</strong> teammrudgandh@gmail.com
-              </p>
-              <p>
-                <strong>Phone:</strong> +91 9371711378 / +91 9850567505
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <h1 className="text-3xl font-bold text-green-700 mb-2">INVOICE</h1>
-            <div className="text-xs text-gray-600 space-y-0.5">
-              <p>
-                <strong>Invoice #:</strong>
-                {invoiceDetails.invoiceNumber}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
-              </p>
-              <p>
-                <strong>Due Date:</strong>
-                {new Date(invoiceDetails.dueDate).toLocaleDateString("en-IN")}
-              </p>
-            </div>
-          </div>
-        </div>
+        <CompanyHeader />
 
         {/* Bank Details */}
         <div className="mb-8">
@@ -550,28 +556,58 @@ const InvoicePreview = () => {
           </h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <div>
-              <p>Beneficiary Name -</p>
-              <p>Name of the Bank -</p>
               <p>
-                <strong>Pune</strong>
+                Beneficiary Name -{" "}
+                <strong>
+                  {shopInfo?.bank_details?.beneficiary_name || "-"}
+                </strong>
               </p>
-              <p>IFSC Code -</p>
+              <p>
+                Name of the Bank -{" "}
+                <strong>{shopInfo?.bank_details?.bank_name || "-"}</strong>
+              </p>
+              <p>
+                Branch -{" "}
+                <strong>{shopInfo?.bank_details?.branch || "-"}</strong>
+              </p>
+              <p>
+                IFSC Code -{" "}
+                <strong>{shopInfo?.bank_details?.ifsc_code || "-"}</strong>
+              </p>
             </div>
             <div>
-              <p>Account No.-</p>
-              <p>Branch -</p>
+              <p>
+                Account No. -{" "}
+                <strong>{shopInfo?.bank_details?.account_number || "-"}</strong>
+              </p>
             </div>
           </div>
         </div>
 
         {/* For Customer */}
         <div className="mb-16">
-          <p className="text-sm mb-8">For {customerInfo.name}</p>
+          <p className="text-sm mb-8">
+            For {shopInfo?.company_name || customerInfo.name}
+          </p>
         </div>
 
         {/* Signature */}
         <div className="text-left mt-32">
-          <p className="text-sm">Signature</p>
+          {shopInfo?.signature ? (
+            <div>
+              <img
+                src={shopInfo.signature}
+                alt="Signature"
+                className="h-16 mb-2 max-w-[150px] object-contain"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
+              />
+              <p className="text-sm">Authorized Signatory</p>
+            </div>
+          ) : (
+            <p className="text-sm">Signature</p>
+          )}
         </div>
       </div>
     </div>

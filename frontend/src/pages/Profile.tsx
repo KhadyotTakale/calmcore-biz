@@ -4,7 +4,6 @@ import {
   User,
   Mail,
   Phone,
-  MapPin,
   Building,
   Upload,
   Save,
@@ -14,13 +13,15 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react";
-import { getShopInfo, updateShopInfo } from "@/services/api"; // Import from your api.ts
+import { getShopInfo, updateShopInfo } from "@/services/api";
+
+// Note: getShopInfo and updateShopInfo use VITE_XANO_ITEMS_BOOKINGS_URL as base URL
 
 const Profile = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -40,48 +41,83 @@ const Profile = () => {
     signature: "",
   });
 
-  const [logoPreview, setLogoPreview] = useState(null);
-  const [signaturePreview, setSignaturePreview] = useState(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
 
   // Load existing shop info on mount
   useEffect(() => {
-    const loadShopInfo = async () => {
-      try {
-        setLoading(true);
-        const data = await getShopInfo();
-
-        if (data.shops_settings) {
-          setFormData(data.shops_settings);
-
-          if (data.shops_settings.logo_url) {
-            setLogoPreview(data.shops_settings.logo_url);
-          }
-
-          if (data.shops_settings.signature) {
-            setSignaturePreview(data.shops_settings.signature);
-          }
-        }
-
-        console.log("Shop info loaded:", data);
-      } catch (err) {
-        console.error("Failed to load shop info:", err);
-        // Don't show error - user might not have saved profile yet
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadShopInfo();
   }, []);
 
-  const handleInputChange = (field, value) => {
+  const loadShopInfo = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log("[Profile] 📥 Loading shop info...");
+
+      const response = await getShopInfo();
+
+      console.log("[Profile] ✅ Shop info loaded:", response);
+
+      // The response has the structure you showed:
+      // { id, created_at, shops_id, seo_script_text, contact_info, shops_settings }
+      if (response.shops_settings) {
+        const settings = response.shops_settings;
+
+        // Set form data from the response
+        setFormData({
+          logo_url: settings.logo_url || "",
+          company_name: settings.company_name || "",
+          address: settings.address || "",
+          email: settings.email || "",
+          phone: settings.phone || "",
+          declaration: settings.declaration || "",
+          bank_details: {
+            beneficiary_name: settings.bank_details?.beneficiary_name || "",
+            account_number: settings.bank_details?.account_number || "",
+            bank_name: settings.bank_details?.bank_name || "",
+            branch: settings.bank_details?.branch || "",
+            ifsc_code: settings.bank_details?.ifsc_code || "",
+          },
+          signature: settings.signature || "",
+        });
+
+        // Set image previews
+        if (settings.logo_url) {
+          setLogoPreview(settings.logo_url);
+        }
+
+        if (settings.signature) {
+          setSignaturePreview(settings.signature);
+        }
+
+        console.log("[Profile] ✅ Form populated with existing data");
+      }
+    } catch (err: any) {
+      console.error("[Profile] ❌ Failed to load shop info:", err);
+
+      // Don't show error if it's 404 (no profile exists yet)
+      if (err.status !== 404) {
+        setError("Failed to load profile. Please try again.");
+      } else {
+        console.log(
+          "[Profile] ℹ️ No existing profile found - user can create one"
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  const handleBankDetailsChange = (field, value) => {
+  const handleBankDetailsChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       bank_details: {
@@ -91,7 +127,7 @@ const Profile = () => {
     }));
   };
 
-  const handleLogoUpload = (e) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -101,17 +137,18 @@ const Profile = () => {
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result);
+        const result = reader.result as string;
+        setLogoPreview(result);
         setFormData((prev) => ({
           ...prev,
-          logo_url: reader.result,
+          logo_url: result,
         }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSignatureUpload = (e) => {
+  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
@@ -121,10 +158,11 @@ const Profile = () => {
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSignaturePreview(reader.result);
+        const result = reader.result as string;
+        setSignaturePreview(result);
         setFormData((prev) => ({
           ...prev,
-          signature: reader.result,
+          signature: result,
         }));
       };
       reader.readAsDataURL(file);
@@ -158,25 +196,28 @@ const Profile = () => {
     try {
       setSaving(true);
 
+      // Prepare payload in the exact format the API expects
       const payload = {
         seo_script_text: "",
         contact_info: {},
         shops_settings: formData,
       };
 
-      console.log("Saving shop info...", payload);
+      console.log("[Profile] 💾 Saving shop info...");
+      console.log("[Profile] 📤 Payload:", JSON.stringify(payload, null, 2));
 
       await updateShopInfo(payload);
 
-      console.log("Save successful!");
+      console.log("[Profile] ✅ Save successful!");
 
       setSuccess(true);
 
+      // Hide success message after 3 seconds
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
-    } catch (err) {
-      console.error("Save error:", err);
+    } catch (err: any) {
+      console.error("[Profile] ❌ Save error:", err);
       setError(err.message || "Failed to save profile. Please try again.");
     } finally {
       setSaving(false);

@@ -220,4 +220,288 @@ All colors MUST be HSL.
   .hover-lift:active {
     transform: translateY(-2px) scale(0.98);
   }
+
+  /* ============================================================================
+     PERFORMANCE OPTIMIZATIONS - Fast CSS Animations
+     ============================================================================ */
+
+  /* Fast fade-in animation (replaces Framer Motion) */
+  @keyframes fadeInFast {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideInFromBottom {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Animation utility classes */
+  .fade-in-fast {
+    animation: fadeInFast 0.2s ease-out;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .slide-in-bottom {
+    animation: slideInFromBottom 0.3s ease-out;
+  }
+
+  /* Feature card optimizations */
+  .feature-card {
+    @apply rounded-xl border border-border bg-card p-4 shadow-sm;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Mode toggle button (Auth page) */
+  .mode-toggle-btn {
+    @apply flex-1 rounded-md px-4 py-2 text-sm font-medium;
+    @apply text-muted-foreground;
+    transition: all 0.15s ease-out;
+  }
+
+  .mode-toggle-btn[data-active="true"] {
+    @apply bg-card text-foreground shadow-sm;
+  }
+
+  .mode-toggle-btn:not([data-active="true"]):hover {
+    @apply text-foreground;
+  }
+
+  /* Gradient text utility */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-success bg-clip-text text-transparent;
+  }
+
+  /* Performance: GPU acceleration for transforms */
+  .fade-in-fast,
+  .fade-in,
+  .slide-in-bottom,
+  .feature-card {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+
+  /* Remove will-change after animation completes */
+  .fade-in-fast,
+  .fade-in,
+  .slide-in-bottom {
+    animation-fill-mode: forwards;
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in-fast,
+    .fade-in,
+    .slide-in-bottom,
+    .feature-card {
+      animation: none;
+      transition: none;
+    }
+
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Optimize hover effects for better performance */
+  .hover-lift,
+  .feature-card {
+    contain: layout style paint;
+  }
+
+  /* Loading spinner for Suspense fallbacks */
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid hsl(var(--muted));
+    border-top-color: hsl(var(--primary));
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Smooth scrolling with performance optimization */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Optimize text rendering */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Prevent layout shift on page load */
+  img,
+  video {
+    height: auto;
+    max-width: 100%;
+  }
+
+  /* Focus visible for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Optimize background gradients */
+  .gradient-primary,
+  .gradient-secondary,
+  .gradient-accent {
+    background-attachment: fixed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gradient-primary,
+    .gradient-secondary,
+    .gradient-accent {
+      background-attachment: scroll;
+    }
+  }
+}
+
+/* ============================================================================
+   TRANSACTIONS PAGE STYLES - Add to index.css
+   ============================================================================ */
+
+@layer utilities {
+  /* Transaction card with optimized animations */
+  .transaction-card {
+    animation: fadeInCard 0.3s ease-out;
+  }
+
+  @keyframes fadeInCard {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Stats cards with staggered appearance */
+  .stat-card {
+    @apply rounded-2xl p-4;
+    animation: fadeInFast 0.3s ease-out;
+  }
+
+  .stat-primary {
+    @apply bg-gradient-to-br from-primary/10 to-primary/5;
+  }
+
+  .stat-success {
+    @apply bg-gradient-to-br from-success/10 to-success/5;
+  }
+
+  .stat-warning {
+    @apply bg-gradient-to-br from-warning/10 to-warning/5;
+  }
+
+  /* Button styles - consistent across app */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white;
+    @apply transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-success {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white;
+    @apply transition-all hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground;
+    @apply transition-all hover:bg-muted disabled:opacity-50;
+  }
+
+  .btn-accent {
+    @apply flex items-center gap-2 rounded-lg bg-gradient-to-r from-accent to-destructive px-4 py-2 text-sm font-medium text-white;
+    @apply shadow-accent hover:shadow-lg transition-all;
+  }
+
+  /* Search input */
+  .search-input {
+    @apply w-full rounded-xl border border-input bg-background pl-10 pr-4 py-2 text-sm text-foreground;
+    @apply placeholder:text-muted-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply transition-all;
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply rounded-2xl border border-border bg-card p-12 text-center;
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Error state */
+  .error-state {
+    @apply rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-center;
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Optimize card hover effects */
+  .transaction-card:hover {
+    will-change: transform;
+  }
+
+  /* Grid layout optimization */
+  @media (min-width: 768px) {
+    .transaction-card:nth-child(n + 7) {
+      /* Only animate first 6 cards for better performance */
+      animation: none;
+    }
+  }
+
+  /* Reduce motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .transaction-card,
+    .stat-card {
+      animation: none;
+    }
+  }
 }

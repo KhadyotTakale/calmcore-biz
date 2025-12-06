@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Plus,
   Trash2,
@@ -59,7 +59,16 @@ const GenerateEstimate = () => {
   const [estimateNumberLoading, setEstimateNumberLoading] = useState(true);
   const [validationErrors, setValidationErrors] = useState([]);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
   const totalSteps = 4;
+
+  // Responsive listener
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Generate estimate number on mount
   useEffect(() => {
@@ -84,9 +93,45 @@ const GenerateEstimate = () => {
     initEstimateNumber();
   }, []);
 
-  const addItem = () => {
-    setItems([
-      ...items,
+  // ============================================================================
+  // MEMOIZED CALCULATIONS - Only recalculate when dependencies change
+  // ============================================================================
+  const subtotal = useMemo(
+    () => items.reduce((sum, item) => sum + item.amount, 0),
+    [items]
+  );
+
+  const discountAmount = useMemo(
+    () => (subtotal * discount) / 100,
+    [subtotal, discount]
+  );
+
+  const taxableAmount = useMemo(
+    () => subtotal - discountAmount,
+    [subtotal, discountAmount]
+  );
+
+  const cgstAmount = useMemo(
+    () => (taxableAmount * cgst) / 100,
+    [taxableAmount, cgst]
+  );
+
+  const sgstAmount = useMemo(
+    () => (taxableAmount * sgst) / 100,
+    [taxableAmount, sgst]
+  );
+
+  const total = useMemo(
+    () => taxableAmount + cgstAmount + sgstAmount,
+    [taxableAmount, cgstAmount, sgstAmount]
+  );
+
+  // ============================================================================
+  // MEMOIZED CALLBACKS - Prevent function recreation on every render
+  // ============================================================================
+  const addItem = useCallback(() => {
+    setItems((prev) => [
+      ...prev,
       {
         id: Date.now(),
         catalogItemId: null,
@@ -97,17 +142,17 @@ const GenerateEstimate = () => {
         imageUrl: null,
       },
     ]);
-  };
+  }, []);
 
-  const removeItem = (id) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id));
-    }
-  };
+  const removeItem = useCallback((id) => {
+    setItems((prev) =>
+      prev.length > 1 ? prev.filter((item) => item.id !== id) : prev
+    );
+  }, []);
 
-  const updateItem = (id, field, value) => {
-    setItems(
-      items.map((item) => {
+  const updateItem = useCallback((id, field, value) => {
+    setItems((prev) =>
+      prev.map((item) => {
         if (item.id === id) {
           const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "rate") {
@@ -118,11 +163,11 @@ const GenerateEstimate = () => {
         return item;
       })
     );
-  };
+  }, []);
 
-  const handleItemSelect = (selectedItem, itemId) => {
-    setItems(
-      items.map((item) => {
+  const handleItemSelect = useCallback((selectedItem, itemId) => {
+    setItems((prev) =>
+      prev.map((item) => {
         if (item.id === itemId) {
           return {
             ...item,
@@ -137,47 +182,38 @@ const GenerateEstimate = () => {
         return item;
       })
     );
-  };
+  }, []);
 
-  const nextStep = () => {
+  const nextStep = useCallback(() => {
     if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  };
+  }, [currentStep, totalSteps]);
 
-  const prevStep = () => {
+  const prevStep = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      setCurrentStep((prev) => prev - 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  };
+  }, [currentStep]);
 
-  const goToStep = (step) => {
+  const goToStep = useCallback((step) => {
     setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const discountAmount = (subtotal * discount) / 100;
-  const taxableAmount = subtotal - discountAmount;
-  const cgstAmount = (taxableAmount * cgst) / 100;
-  const sgstAmount = (taxableAmount * sgst) / 100;
-  const total = taxableAmount + cgstAmount + sgstAmount;
+  }, []);
 
   // ============================================================================
-  // VALIDATION FUNCTION - Returns errors array
+  // VALIDATION FUNCTION
   // ============================================================================
-  const validateEstimateData = () => {
+  const validateEstimateData = useCallback(() => {
     const errors = [];
 
-    // 1. Customer Name (Required)
     const name = customerInfo.name?.trim();
     if (!name || name.length === 0) {
       errors.push("Customer name is required");
     }
 
-    // 2. Phone (Required + Basic validation)
     const phone = customerInfo.phone?.trim().replace(/\D/g, "");
     if (!phone || phone.length === 0) {
       errors.push("Customer phone number is required");
@@ -185,7 +221,6 @@ const GenerateEstimate = () => {
       errors.push("Phone number must be at least 10 digits");
     }
 
-    // 3. Email (Optional but validate format if provided)
     const email = customerInfo.email?.trim();
     if (
       email &&
@@ -195,7 +230,6 @@ const GenerateEstimate = () => {
       errors.push("Please enter a valid email address");
     }
 
-    // 4. Estimate Number
     if (
       estimateDetails.estimateNumber === "Loading..." ||
       !estimateDetails.estimateNumber
@@ -203,7 +237,6 @@ const GenerateEstimate = () => {
       errors.push("Estimate number is still loading. Please wait...");
     }
 
-    // 5. Items validation
     const validItems = items.filter(
       (item) =>
         item.catalogItemId &&
@@ -218,16 +251,14 @@ const GenerateEstimate = () => {
     }
 
     return { isValid: errors.length === 0, errors, validItems };
-  };
+  }, [customerInfo, estimateDetails.estimateNumber, items]);
 
   // ============================================================================
-  // ENHANCED CREATE ESTIMATE - WITH VALIDATION & ERROR HANDLING
+  // CREATE ESTIMATE HANDLER
   // ============================================================================
-  const handleCreateEstimate = async () => {
-    // Clear previous errors
+  const handleCreateEstimate = useCallback(async () => {
     setValidationErrors([]);
 
-    // Validate before proceeding
     const validation = validateEstimateData();
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
@@ -238,7 +269,6 @@ const GenerateEstimate = () => {
     try {
       setLoading(true);
 
-      // Prepare clean customer data (trim all values)
       const name = customerInfo.name.trim();
       const phone = customerInfo.phone.trim();
       const email = customerInfo.email?.trim() || "";
@@ -257,28 +287,18 @@ const GenerateEstimate = () => {
 
       console.log("📋 Customer data to save:", customerData);
 
-      // Create booking
       const booking = await createBooking();
       console.log("✓ Booking created:", booking.id);
 
-      // Add items sequentially with error tracking
       const itemErrors = [];
 
       for (let i = 0; i < validation.validItems.length; i++) {
         const item = validation.validItems[i];
 
         try {
-          // Add item to booking
           await addBookingItem(booking.id, item.catalogItemId);
-          console.log(
-            `✓ Added item ${i + 1}/${validation.validItems.length}: ${
-              item.description
-            }`
-          );
 
-          // Update the item with its data
           if (i === 0) {
-            // FIRST item gets ALL the estimate data
             await updateBookingItem(booking.id, item.catalogItemId, {
               quantity: item.quantity,
               price: item.rate.toString(),
@@ -299,9 +319,7 @@ const GenerateEstimate = () => {
                 },
               },
             });
-            console.log("✓ First item updated with COMPLETE estimate data");
           } else {
-            // Remaining items get basic data only
             await updateBookingItem(booking.id, item.catalogItemId, {
               quantity: item.quantity,
               price: item.rate.toString(),
@@ -309,7 +327,6 @@ const GenerateEstimate = () => {
                 image_url: item.imageUrl || "",
               },
             });
-            console.log(`✓ Item ${i + 1} updated with basic data`);
           }
         } catch (itemError) {
           console.error(`❌ Failed to process item ${i + 1}:`, itemError);
@@ -317,7 +334,6 @@ const GenerateEstimate = () => {
         }
       }
 
-      // Check if any items failed
       if (itemErrors.length > 0) {
         throw new Error(
           `Failed to add ${itemErrors.length} item(s):\n${itemErrors.join(
@@ -326,7 +342,6 @@ const GenerateEstimate = () => {
         );
       }
 
-      // Create lead - only if email is provided (non-critical)
       if (customerData.email) {
         try {
           await createLead({
@@ -350,20 +365,13 @@ const GenerateEstimate = () => {
               ? [{ key: "gstin", val: customerData.gstin, datatype: "STRING" }]
               : [],
           });
-          console.log("✓ Lead created");
         } catch (leadError) {
           console.warn("⚠️ Lead creation failed (non-critical):", leadError);
         }
       }
 
-      // Save booking slug and mark as created
       setBookingSlug(booking.booking_slug);
       setEstimateCreated(true);
-
-      console.log("✅ ESTIMATE CREATED SUCCESSFULLY");
-      console.log("Booking ID:", booking.id);
-      console.log("Booking Slug:", booking.booking_slug);
-      console.log("Customer:", customerData.name);
 
       alert(
         `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
@@ -376,16 +384,21 @@ const GenerateEstimate = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    validateEstimateData,
+    customerInfo,
+    estimateDetails,
+    discount,
+    cgst,
+    sgst,
+  ]);
 
-  // Button 2: Download PDF
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     if (!bookingSlug) return;
     window.open(`/estimate-preview?id=${bookingSlug}`, "_blank");
-  };
+  }, [bookingSlug]);
 
-  // Button 3: Send to Customer
-  const handleSendToCustomer = () => {
+  const handleSendToCustomer = useCallback(() => {
     if (!bookingSlug) return;
 
     const shareableLink = `${window.location.origin}/estimate-preview?id=${bookingSlug}`;
@@ -403,7 +416,13 @@ const GenerateEstimate = () => {
     )}`;
 
     window.open(whatsappUrl, "_blank");
-  };
+  }, [
+    bookingSlug,
+    customerInfo.name,
+    customerInfo.phone,
+    estimateDetails.validUntil,
+    total,
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-28">
@@ -499,7 +518,7 @@ const GenerateEstimate = () => {
           {/* Main Form */}
           <div className="space-y-6 lg:col-span-2">
             {/* Step 1: Estimate Details */}
-            {(currentStep === 1 || window.innerWidth >= 1024) && (
+            {(currentStep === 1 || isDesktop) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -571,7 +590,7 @@ const GenerateEstimate = () => {
             )}
 
             {/* Step 2: Customer Information */}
-            {(currentStep === 2 || window.innerWidth >= 1024) && (
+            {(currentStep === 2 || isDesktop) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -691,7 +710,7 @@ const GenerateEstimate = () => {
             )}
 
             {/* Step 3: Items */}
-            {(currentStep === 3 || window.innerWidth >= 1024) && (
+            {(currentStep === 3 || isDesktop) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -712,7 +731,7 @@ const GenerateEstimate = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {items.map((item, index) => (
+                  {items.map((item) => (
                     <div
                       key={item.id}
                       className="space-y-4 rounded-lg border border-border bg-muted/30 p-4"
@@ -829,7 +848,7 @@ const GenerateEstimate = () => {
             )}
 
             {/* Step 4: Notes & Review */}
-            {(currentStep === 4 || window.innerWidth >= 1024) && (
+            {(currentStep === 4 || isDesktop) && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

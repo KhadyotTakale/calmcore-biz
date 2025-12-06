@@ -121,12 +121,18 @@ const CustomerSelector = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setSearchQuery(newValue);
+    setIsOpen(true);
 
-    // If user is typing a new name (not selecting from dropdown), clear autofill
-    if (newValue !== value) {
-      // User is typing manually - this will be a new customer
-      setIsOpen(true);
-    }
+    // 🔥 FIX: Always update parent component when user types
+    // This ensures new customer names are captured
+    onCustomerSelect({
+      name: newValue,
+      email: "",
+      phone: "",
+      address: "",
+      state: "",
+      gstin: "",
+    });
   };
 
   return (

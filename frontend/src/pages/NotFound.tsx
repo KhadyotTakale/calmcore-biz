@@ -18,7 +18,7 @@ const NotFound = () => {
         <p className="mb-4 text-xl text-gray-600">
           This Feature is coming soon
         </p>
-        <a href="/" className="text-blue-500 underline hover:text-blue-700">
+        <a href="/home" className="text-blue-500 underline hover:text-blue-700">
           Return to Home
         </a>
       </div>
