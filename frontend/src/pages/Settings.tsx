@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useClerk } from "@clerk/clerk-react";
 import {
   User,
@@ -12,11 +12,18 @@ import {
   ChevronRight,
   CreditCard,
   Package,
+  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { getShopInfo } from "@/services/api";
+
+// Lazy load Razorpay payment component
+const RazorpayPayment = lazy(
+  () => import("@/components/estimate/RazorpayPayment")
+);
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -24,6 +31,13 @@ const Settings = () => {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showPayment, setShowPayment] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState({
+    name: "Elegant Pro",
+    email: "admin@elegant.com",
+    logo: "",
+  });
 
   // Handle sign out
   const handleSignOut = async () => {
@@ -62,66 +76,30 @@ const Settings = () => {
   };
 
   const handleSubscription = async () => {
-    setIsProcessing(true);
+    setShowPayment(true);
+  };
 
-    // Load Razorpay script
-    const scriptLoaded = await loadRazorpayScript();
+  useEffect(() => {
+    const loadCompanyInfo = async () => {
+      try {
+        setIsLoading(true);
+        const shopInfo = await getShopInfo();
 
-    if (!scriptLoaded) {
-      toast({
-        title: "Error",
-        description:
-          "Failed to load payment gateway. Please check your internet connection.",
-        variant: "destructive",
-      });
-      setIsProcessing(false);
-      return;
-    }
-
-    // Razorpay test mode options
-    const options = {
-      key: "rzp_test_1DP5mmOlF5G5ag", // Replace with YOUR Razorpay test key
-      amount: 200000, // Amount in paise (₹99 = 9900 paise)
-      currency: "INR",
-      name: "Elegant Pro",
-      description: "Premium Subscription - Monthly",
-      image: "https://cdn-icons-png.flaticon.com/512/2942/2942813.png",
-      handler: function (response) {
-        // Payment successful
-        toast({
-          title: "Payment Successful!",
-          description: `Payment ID: ${response.razorpay_payment_id}`,
+        setCompanyInfo({
+          name: shopInfo.shops_settings?.company_name || "Elegant Pro",
+          email: shopInfo.shops_settings?.email || "admin@elegant.com",
+          logo: shopInfo.shops_settings?.logo_url || "",
         });
-        console.log("Payment Response:", response);
-        setIsProcessing(false);
-        // Here you would typically:
-        // 1. Send payment details to your backend
-        // 2. Verify payment signature
-        // 3. Update user subscription status
-      },
-      prefill: {
-        name: "Elegant Pro User",
-        email: "admin@elegant.com",
-        contact: "9999999999",
-      },
-      notes: {
-        subscription_plan: "premium_monthly",
-        app_name: "Elegant Pro Estimate Generator",
-      },
-      theme: {
-        color: "#6366f1",
-      },
-      modal: {
-        ondismiss: function () {
-          setIsProcessing(false);
-          console.log("Payment cancelled by user");
-        },
-      },
+      } catch (error) {
+        console.error("Failed to load company info:", error);
+        // Keep fallback values already set in state
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    const razorpay = new window.Razorpay(options);
-    razorpay.open();
-  };
+    loadCompanyInfo();
+  }, []);
 
   const settingsSections = [
     {
@@ -195,6 +173,61 @@ const Settings = () => {
     },
   ];
 
+  // Loading skeleton component
+  if (isLoading) {
+    return (
+      <div className="min-h-screen pb-28">
+        <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6 lg:p-8">
+          {/* Header Skeleton */}
+          <div className="animate-pulse">
+            <div className="h-8 w-32 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 w-48 bg-gray-200 rounded"></div>
+          </div>
+
+          {/* Profile Card Skeleton */}
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center gap-4 animate-pulse">
+              <div className="h-16 w-16 rounded-2xl bg-gray-200"></div>
+              <div className="flex-1">
+                <div className="h-6 w-32 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 w-48 bg-gray-200 rounded mb-2"></div>
+                <div className="h-6 w-24 bg-gray-200 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Settings Sections Skeleton */}
+          {[1, 2, 3].map((section) => (
+            <div
+              key={section}
+              className="rounded-2xl border border-border bg-card shadow-sm"
+            >
+              <div className="p-4 animate-pulse">
+                <div className="h-4 w-24 bg-gray-200 rounded"></div>
+              </div>
+              <Separator />
+              <div className="divide-y divide-border">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-4 p-4 animate-pulse"
+                  >
+                    <div className="h-12 w-12 rounded-xl bg-gray-200"></div>
+                    <div className="flex-1">
+                      <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-3 w-48 bg-gray-200 rounded"></div>
+                    </div>
+                    <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-28">
       <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6 lg:p-8">
@@ -219,16 +252,34 @@ const Settings = () => {
           className="rounded-2xl border border-border bg-card p-6 shadow-sm"
         >
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-success shadow-primary">
-              <span className="font-heading text-2xl font-bold text-white">
-                E
-              </span>
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-success shadow-primary overflow-hidden">
+              {companyInfo.logo ? (
+                <img
+                  src={companyInfo.logo}
+                  alt={companyInfo.name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.parentElement!.innerHTML =
+                      '<span class="font-heading text-2xl font-bold text-white">E</span>';
+                  }}
+                />
+              ) : (
+                <span className="font-heading text-2xl font-bold text-white">
+                  E
+                </span>
+              )}
             </div>
             <div className="flex-1">
               <h2 className="font-heading text-xl font-semibold text-foreground">
-                Elegant Pro
+                {companyInfo.name}
               </h2>
-              <p className="text-sm text-muted-foreground">admin@elegant.com</p>
+              <p className="text-sm text-muted-foreground">
+                {companyInfo.email}
+              </p>
               <div className="mt-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                 Premium Plan
               </div>
@@ -327,6 +378,33 @@ const Settings = () => {
             </div>
           </div>
         </motion.button>
+
+        {/* Lazy-loaded Razorpay Payment Modal */}
+        {showPayment && (
+          <Suspense
+            fallback={<div className="text-center">Loading payment...</div>}
+          >
+            <RazorpayPayment
+              isOpen={showPayment}
+              onClose={() => setShowPayment(false)}
+              onSuccess={() => {
+                setShowPayment(false);
+                toast({
+                  title: "Payment Successful!",
+                  description: "Your subscription has been activated.",
+                });
+              }}
+              onError={(error) => {
+                setShowPayment(false);
+                toast({
+                  title: "Payment Failed",
+                  description: error || "Please try again.",
+                  variant: "destructive",
+                });
+              }}
+            />
+          </Suspense>
+        )}
 
         {/* Logout Button */}
         <motion.div
