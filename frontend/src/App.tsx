@@ -21,11 +21,8 @@ import { BottomNav } from "@/components/BottomNav";
 import { DesktopNav } from "@/components/DesktopNav";
 
 // Custom Hooks
-import {
-  useAuthInitialization,
-  useNavVisibility,
-  createOptimizedQueryClient,
-} from "@/hooks";
+import { useAuthInitialization, useNavVisibility } from "@/hooks";
+import { createOptimizedQueryClient } from "@/hooks";
 
 // ============================================================================
 // LAZY LOADED PAGES - Loads only when needed
