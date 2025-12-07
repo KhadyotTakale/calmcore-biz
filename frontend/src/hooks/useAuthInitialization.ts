@@ -94,17 +94,23 @@ export const useAuthInitialization = () => {
     const publicPaths = ["/", "/auth", "/estimate-preview", "/invoice-preview"];
     const isPublicPath = publicPaths.includes(path);
 
+    // Paths that users with shops should always be able to access
+    const allowedWithShopPaths = [
+      "/company-info", // ✅ FIXED: Allow viewing company info
+      "/settings",
+      "/profile",
+      "/manage-items",
+    ];
+
     // User has shop - redirect from public pages to home
     if (hasOwnShop && (path === "/" || path === "/auth")) {
       console.log("[Auth] Redirecting authenticated user to /home");
       navigate("/home", { replace: true });
     }
-    // User has shop but on company-info - redirect to home
-    else if (hasOwnShop && path === "/company-info") {
-      console.log("[Auth] User has shop, redirecting from /company-info");
-      navigate("/home", { replace: true });
-    }
-    // User has no shop - redirect to company-info
+    // ✅ REMOVED: No longer redirect users with shops away from company-info
+    // Users with shops can now view/edit their company info
+
+    // User has no shop - redirect to company-info (except public paths)
     else if (
       hasOwnShop === false &&
       !isPublicPath &&
