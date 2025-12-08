@@ -102,24 +102,18 @@ const InvoicePreview = () => {
       }
 
       try {
-        console.log("[InvoicePreview] Fetching booking:", bookingSlug);
-
         // Fetch shop info first
         let shopData = null;
         try {
           const shopInfoResponse = await getShopInfo();
           shopData = shopInfoResponse.shops_settings;
           setShopInfo(shopData);
-          console.log("[InvoicePreview] Shop info loaded:", shopData);
         } catch (shopErr) {
-          console.error("[InvoicePreview] Failed to load shop info:", shopErr);
           // Continue without shop info - use defaults
         }
 
         // Get booking by slug (uses customer auth internally)
         const bookingArray = await getBookingBySlug(bookingSlug);
-
-        console.log("[InvoicePreview] Booking response:", bookingArray);
 
         if (!bookingArray || bookingArray.length === 0) {
           throw new Error("Booking not found");

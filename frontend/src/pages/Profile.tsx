@@ -12,10 +12,12 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
+  MapPin,
+  CreditCard,
+  Users,
+  Image,
 } from "lucide-react";
 import { getShopInfo, updateShopInfo } from "@/services/api";
-
-// Note: getShopInfo and updateShopInfo use VITE_XANO_ITEMS_BOOKINGS_URL as base URL
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -44,7 +46,6 @@ const Profile = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
 
-  // Load existing shop info on mount
   useEffect(() => {
     loadShopInfo();
   }, []);
@@ -54,18 +55,11 @@ const Profile = () => {
       setLoading(true);
       setError(null);
 
-      console.log("[Profile] 📥 Loading shop info...");
-
       const response = await getShopInfo();
 
-      console.log("[Profile] ✅ Shop info loaded:", response);
-
-      // The response has the structure you showed:
-      // { id, created_at, shops_id, seo_script_text, contact_info, shops_settings }
       if (response.shops_settings) {
         const settings = response.shops_settings;
 
-        // Set form data from the response
         setFormData({
           logo_url: settings.logo_url || "",
           company_name: settings.company_name || "",
@@ -83,7 +77,6 @@ const Profile = () => {
           signature: settings.signature || "",
         });
 
-        // Set image previews
         if (settings.logo_url) {
           setLogoPreview(settings.logo_url);
         }
@@ -91,19 +84,13 @@ const Profile = () => {
         if (settings.signature) {
           setSignaturePreview(settings.signature);
         }
-
-        console.log("[Profile] ✅ Form populated with existing data");
       }
     } catch (err: any) {
       console.error("[Profile] ❌ Failed to load shop info:", err);
 
-      // Don't show error if it's 404 (no profile exists yet)
       if (err.status !== 404) {
         setError("Failed to load profile. Please try again.");
       } else {
-        console.log(
-          "[Profile] ℹ️ No existing profile found - user can create one"
-        );
       }
     } finally {
       setLoading(false);
@@ -196,23 +183,16 @@ const Profile = () => {
     try {
       setSaving(true);
 
-      // Prepare payload in the exact format the API expects
       const payload = {
         seo_script_text: "",
         contact_info: {},
         shops_settings: formData,
       };
 
-      console.log("[Profile] 💾 Saving shop info...");
-      console.log("[Profile] 📤 Payload:", JSON.stringify(payload, null, 2));
-
       await updateShopInfo(payload);
-
-      console.log("[Profile] ✅ Save successful!");
 
       setSuccess(true);
 
-      // Hide success message after 3 seconds
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
@@ -224,26 +204,39 @@ const Profile = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-28">
-      <div className="mx-auto max-w-5xl p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-28">
+      <div className="mx-auto max-w-5xl p-4 md:p-6 lg:p-8 fade-in-fast">
         {/* Header */}
-        <div className="mb-6 animate-fadeIn">
+        <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             <button
               onClick={() => navigate("/settings")}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition-all hover:shadow-md"
+              className="btn-secondary h-10 w-10 !p-0"
             >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <User className="h-6 w-6 text-blue-600" />
-                <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="rounded-lg bg-primary/10 p-2">
+                  <User className="h-6 w-6 text-primary" />
+                </div>
+                <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
                   Shop Profile & Settings
                 </h1>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground ml-14">
                 Manage your business information for estimates and invoices
               </p>
             </div>
@@ -251,138 +244,144 @@ const Profile = () => {
 
           {/* Success/Error Messages */}
           {success && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-4 text-green-800 animate-slideDown">
-              <CheckCircle className="h-5 w-5" />
+            <div className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 p-4 text-success animate-slideDown">
+              <CheckCircle className="h-5 w-5 flex-shrink-0" />
               <span className="font-medium">Profile saved successfully!</span>
             </div>
           )}
 
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 animate-slideDown">
-              <AlertCircle className="h-5 w-5" />
+            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-destructive animate-slideDown">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
               <span className="font-medium">{error}</span>
             </div>
           )}
         </div>
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          </div>
-        ) : (
-          <>
-            {/* Logo & Signature Upload Section */}
-            <div
-              className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-              style={{ animationDelay: "0.1s" }}
-            >
-              <h2 className="mb-6 text-lg font-semibold text-gray-900">
+        {/* Main Form Container */}
+        <div className="rounded-2xl border-2 border-primary/20 bg-card p-6 md:p-8 shadow-lg">
+          {/* Branding Section */}
+          <div className="mb-8 pb-6 border-b-2 border-border">
+            <div className="mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">
                 Branding
-              </h2>
+              </h3>
+              <div className="flex-1 h-px bg-border" />
+            </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Logo Upload */}
-                <div>
-                  <h3 className="mb-3 text-sm font-medium text-gray-700">
-                    Company Logo
-                  </h3>
-                  <div className="flex flex-col gap-4">
-                    <div className="relative flex-shrink-0">
-                      {logoPreview ? (
-                        <div className="rounded-xl border-2 border-gray-200 bg-white p-4">
-                          <img
-                            src={logoPreview}
-                            alt="Company Logo"
-                            className="max-h-32 w-auto object-contain mx-auto"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-32 w-full rounded-xl bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
-                          <Building className="h-10 w-10 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="logo-upload"
-                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 cursor-pointer"
-                      >
-                        <Upload className="h-4 w-4" />
-                        Upload Logo
-                      </label>
-                      <input
-                        id="logo-upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                      />
-                      <p className="mt-2 text-xs text-gray-500">
-                        PNG, JPG, SVG supported. Max 5MB
-                      </p>
-                    </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Logo Upload */}
+              <div>
+                <label className="mb-3 block text-sm font-semibold text-foreground">
+                  Company Logo
+                </label>
+                <div className="flex flex-col gap-4">
+                  <div className="relative">
+                    {logoPreview ? (
+                      <div className="rounded-xl border-2 border-border bg-background p-4 transition-all hover:border-primary/30">
+                        <img
+                          src={logoPreview}
+                          alt="Company Logo"
+                          className="h-32 w-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-40 w-full rounded-xl bg-muted flex flex-col items-center justify-center border-2 border-dashed border-border">
+                        <Image className="h-12 w-12 text-muted-foreground mb-2" />
+                        <span className="text-xs text-muted-foreground">
+                          No logo uploaded
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="logo-upload"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold transition-all hover:bg-primary/90 hover:shadow-lg cursor-pointer w-full"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {logoPreview ? "Change Logo" : "Upload Logo"}
+                    </label>
+                    <input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      PNG, JPG, SVG supported • Max 5MB
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                {/* Signature Upload */}
-                <div>
-                  <h3 className="mb-3 text-sm font-medium text-gray-700">
-                    Signature
-                  </h3>
-                  <div className="flex flex-col gap-4">
-                    <div className="relative flex-shrink-0">
-                      {signaturePreview ? (
-                        <div className="rounded-xl border-2 border-gray-200 bg-white p-4">
-                          <img
-                            src={signaturePreview}
-                            alt="Signature"
-                            className="max-h-32 w-auto object-contain mx-auto"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-32 w-full rounded-xl bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
-                          <FileText className="h-10 w-10 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="signature-upload"
-                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 cursor-pointer"
-                      >
-                        <Upload className="h-4 w-4" />
-                        Upload Signature
-                      </label>
-                      <input
-                        id="signature-upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleSignatureUpload}
-                        className="hidden"
-                      />
-                      <p className="mt-2 text-xs text-gray-500">
-                        PNG, JPG supported. Max 2MB
-                      </p>
-                    </div>
+              {/* Signature Upload */}
+              <div>
+                <label className="mb-3 block text-sm font-semibold text-foreground">
+                  Signature
+                </label>
+                <div className="flex flex-col gap-4">
+                  <div className="relative">
+                    {signaturePreview ? (
+                      <div className="rounded-xl border-2 border-border bg-background p-4 transition-all hover:border-primary/30">
+                        <img
+                          src={signaturePreview}
+                          alt="Signature"
+                          className="h-32 w-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-40 w-full rounded-xl bg-muted flex flex-col items-center justify-center border-2 border-dashed border-border">
+                        <FileText className="h-12 w-12 text-muted-foreground mb-2" />
+                        <span className="text-xs text-muted-foreground">
+                          No signature uploaded
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="signature-upload"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold transition-all hover:bg-primary/90 hover:shadow-lg cursor-pointer w-full"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {signaturePreview
+                        ? "Change Signature"
+                        : "Upload Signature"}
+                    </label>
+                    <input
+                      id="signature-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSignatureUpload}
+                      className="hidden"
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      PNG, JPG supported • Max 2MB
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Company Information */}
-            <div
-              className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-              style={{ animationDelay: "0.2s" }}
-            >
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          {/* Company Information Section */}
+          <div className="mb-8 pb-6 border-b-2 border-border">
+            <div className="mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">
                 Company Information
-              </h2>
-              <div className="grid md:grid-cols-1 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Company Name *
-                  </label>
+              </h3>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Company Name <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <input
                     type="text"
                     value={formData.company_name}
@@ -390,14 +389,17 @@ const Profile = () => {
                       handleInputChange("company_name", e.target.value)
                     }
                     placeholder="Your Company Name"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
+              </div>
 
-                <div className="md:col-span-1">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Address *
-                  </label>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-foreground">
+                  Address <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   <textarea
                     value={formData.address}
                     onChange={(e) =>
@@ -405,16 +407,18 @@ const Profile = () => {
                     }
                     placeholder="Complete business address"
                     rows={3}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
                   />
                 </div>
+              </div>
 
+              <div className="grid md:grid-cols-2 gap-5">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Email *
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
+                    Email <span className="text-destructive">*</span>
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <input
                       type="email"
                       value={formData.email}
@@ -422,17 +426,17 @@ const Profile = () => {
                         handleInputChange("email", e.target.value)
                       }
                       placeholder="business@domain.com"
-                      className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Phone *
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
+                    Phone <span className="text-destructive">*</span>
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <input
                       type="tel"
                       value={formData.phone}
@@ -440,114 +444,139 @@ const Profile = () => {
                         handleInputChange("phone", e.target.value)
                       }
                       placeholder="+91 xxxxxxxxxx"
-                      className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Bank Details */}
-            <div
-              className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-              style={{ animationDelay: "0.3s" }}
-            >
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          {/* Bank Details Section */}
+          <div className="mb-8 pb-6 border-b-2 border-border">
+            <div className="mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">
                 Bank Details (for NEFT/RTGS)
-              </h2>
-              <div className="grid md:grid-cols-2 gap-4">
+              </h3>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <div className="space-y-5">
+              <div className="grid md:grid-cols-2 gap-5">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
                     Beneficiary Name
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bank_details.beneficiary_name}
-                    onChange={(e) =>
-                      handleBankDetailsChange(
-                        "beneficiary_name",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Beneficiary Name"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="relative">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={formData.bank_details.beneficiary_name}
+                      onChange={(e) =>
+                        handleBankDetailsChange(
+                          "beneficiary_name",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Beneficiary Name"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
                     Account Number
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bank_details.account_number}
-                    onChange={(e) =>
-                      handleBankDetailsChange("account_number", e.target.value)
-                    }
-                    placeholder="xxxxxxxxxxxx"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={formData.bank_details.account_number}
+                      onChange={(e) =>
+                        handleBankDetailsChange(
+                          "account_number",
+                          e.target.value
+                        )
+                      }
+                      placeholder="xxxxxxxxxxxx"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
                     Bank Name
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bank_details.bank_name}
-                    onChange={(e) =>
-                      handleBankDetailsChange("bank_name", e.target.value)
-                    }
-                    placeholder="Bank Name"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={formData.bank_details.bank_name}
+                      onChange={(e) =>
+                        handleBankDetailsChange("bank_name", e.target.value)
+                      }
+                      placeholder="Bank Name"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
                     Branch
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bank_details.branch}
-                    onChange={(e) =>
-                      handleBankDetailsChange("branch", e.target.value)
-                    }
-                    placeholder="Branch Name"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={formData.bank_details.branch}
+                      onChange={(e) =>
+                        handleBankDetailsChange("branch", e.target.value)
+                      }
+                      placeholder="Branch Name"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-semibold text-foreground">
                     IFSC Code
                   </label>
-                  <input
-                    type="text"
-                    value={formData.bank_details.ifsc_code}
-                    onChange={(e) =>
-                      handleBankDetailsChange("ifsc_code", e.target.value)
-                    }
-                    placeholder="IFSC Code"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={formData.bank_details.ifsc_code}
+                      onChange={(e) =>
+                        handleBankDetailsChange("ifsc_code", e.target.value)
+                      }
+                      placeholder="IFSC Code"
+                      className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Declaration */}
-            <div
-              className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-              style={{ animationDelay: "0.4s" }}
-            >
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          {/* Declaration Section */}
+          <div className="mb-6">
+            <div className="mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">
                 Declaration
-              </h2>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Declaration Text
-                </label>
+              </h3>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">
+                Declaration Text
+              </label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                 <textarea
                   value={formData.declaration}
                   onChange={(e) =>
@@ -555,70 +584,37 @@ const Profile = () => {
                   }
                   placeholder="e.g., I/We declare that this estimate shows the actual price of services described and that all particulars are true and correct."
                   rows={4}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border-2 border-border bg-background pl-11 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  This text will appear at the bottom of estimates and invoices
-                </p>
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                This text will appear at the bottom of estimates and invoices
+              </p>
             </div>
+          </div>
 
-            {/* Save Button */}
-            <div className="animate-fadeIn" style={{ animationDelay: "0.5s" }}>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-5 w-5" />
-                    Save Profile
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        )}
+          {/* Save Button */}
+          <div className="pt-6 border-t-2 border-border">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Saving Profile...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" />
+                  Save Profile
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out forwards;
-          opacity: 0;
-        }
-
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

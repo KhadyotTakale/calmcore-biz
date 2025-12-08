@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
+import CustomerSelector from "@/components/estimate/CustomerSelector";
 import {
   createBooking,
   addBookingItem,
@@ -57,6 +58,17 @@ const GenerateInvoice = () => {
   const [invoiceCreated, setInvoiceCreated] = useState(false);
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(true);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  const totalSteps = 4;
+
+  // Responsive listener
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Generate invoice number on mount
   useEffect(() => {
@@ -173,6 +185,25 @@ const GenerateInvoice = () => {
     );
   }, []);
 
+  const nextStep = useCallback(() => {
+    if (currentStep < totalSteps) {
+      setCurrentStep((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentStep, totalSteps]);
+
+  const prevStep = useCallback(() => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentStep]);
+
+  const goToStep = useCallback((step) => {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   // ============================================================================
   // VALIDATION FUNCTION
   // ============================================================================
@@ -255,10 +286,7 @@ const GenerateInvoice = () => {
         gstin,
       };
 
-      console.log("📋 Customer data to save:", customerData);
-
       const booking = await createBooking();
-      console.log("✓ Booking created:", booking.id);
 
       const itemErrors = [];
 
@@ -267,11 +295,6 @@ const GenerateInvoice = () => {
 
         try {
           await addBookingItem(booking.id, item.catalogItemId);
-          console.log(
-            `✓ Added item ${i + 1}/${validation.validItems.length}: ${
-              item.description
-            }`
-          );
 
           if (i === 0) {
             await updateBookingItem(booking.id, item.catalogItemId, {
@@ -294,7 +317,6 @@ const GenerateInvoice = () => {
                 },
               },
             });
-            console.log("✓ First item updated with COMPLETE invoice data");
           } else {
             await updateBookingItem(booking.id, item.catalogItemId, {
               quantity: item.quantity,
@@ -303,7 +325,6 @@ const GenerateInvoice = () => {
                 image_url: item.imageUrl || "",
               },
             });
-            console.log(`✓ Item ${i + 1} updated with basic data`);
           }
         } catch (itemError) {
           console.error(`❌ Failed to process item ${i + 1}:`, itemError);
@@ -342,7 +363,6 @@ const GenerateInvoice = () => {
               ? [{ key: "gstin", val: customerData.gstin, datatype: "STRING" }]
               : [],
           });
-          console.log("✓ Lead created");
         } catch (leadError) {
           console.warn("⚠️ Lead creation failed (non-critical):", leadError);
         }
@@ -350,11 +370,6 @@ const GenerateInvoice = () => {
 
       setBookingSlug(booking.booking_slug);
       setInvoiceCreated(true);
-
-      console.log("✅ INVOICE CREATED SUCCESSFULLY");
-      console.log("Booking ID:", booking.id);
-      console.log("Booking Slug:", booking.booking_slug);
-      console.log("Customer:", customerData.name);
 
       alert(
         `✓ Invoice created successfully!\n\nInvoice #: ${invoiceDetails.invoiceNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
@@ -427,6 +442,43 @@ const GenerateInvoice = () => {
           </div>
         </motion.div>
 
+        {/* Mobile Stepper - Only visible on mobile */}
+        <div className="mb-6">
+          <div className="flex items-center mb-4">
+            {[1, 2, 3, 4].map((step) => (
+              <div key={step} className="flex-1 flex items-center">
+                <div className="flex flex-col items-center flex-1">
+                  <button
+                    onClick={() => goToStep(step)}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                      currentStep === step
+                        ? "bg-secondary text-secondary-foreground"
+                        : currentStep > step
+                        ? "bg-secondary/20 text-secondary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {step}
+                  </button>
+                  <span className="text-xs mt-1 text-center text-muted-foreground">
+                    {step === 1 && "Details"}
+                    {step === 2 && "Customer"}
+                    {step === 3 && "Items"}
+                    {step === 4 && "Review"}
+                  </span>
+                </div>
+                {step < 4 && (
+                  <div
+                    className={`h-0.5 flex-1 mx-2 ${
+                      currentStep > step ? "bg-secondary" : "bg-muted"
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Validation Errors Alert */}
         {validationErrors.length > 0 && (
           <motion.div
@@ -456,349 +508,388 @@ const GenerateInvoice = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Form */}
           <div className="space-y-6 lg:col-span-2">
-            {/* Invoice Details */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            >
-              <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                Invoice Details
-              </h2>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Invoice Number
-                  </label>
-                  <div className="relative">
+            {/* Step 1: Invoice Details */}
+            {currentStep === 1 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+              >
+                <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
+                  Invoice Details
+                </h2>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Invoice Number
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={invoiceDetails.invoiceNumber}
+                        onChange={(e) =>
+                          setInvoiceDetails({
+                            ...invoiceDetails,
+                            invoiceNumber: e.target.value,
+                          })
+                        }
+                        disabled={invoiceNumberLoading}
+                        className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:opacity-50"
+                      />
+                      {invoiceNumberLoading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-secondary border-t-transparent" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Date
+                    </label>
                     <input
-                      type="text"
-                      value={invoiceDetails.invoiceNumber}
+                      type="date"
+                      value={invoiceDetails.date}
                       onChange={(e) =>
                         setInvoiceDetails({
                           ...invoiceDetails,
-                          invoiceNumber: e.target.value,
+                          date: e.target.value,
                         })
                       }
-                      disabled={invoiceNumberLoading}
-                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:opacity-50"
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                     />
-                    {invoiceNumberLoading && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-secondary border-t-transparent" />
-                      </div>
-                    )}
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={invoiceDetails.dueDate}
+                      onChange={(e) =>
+                        setInvoiceDetails({
+                          ...invoiceDetails,
+                          dueDate: e.target.value,
+                        })
+                      }
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
                   </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={invoiceDetails.date}
-                    onChange={(e) =>
-                      setInvoiceDetails({
-                        ...invoiceDetails,
-                        date: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={invoiceDetails.dueDate}
-                    onChange={(e) =>
-                      setInvoiceDetails({
-                        ...invoiceDetails,
-                        dueDate: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            )}
 
-            {/* Customer Information */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            >
-              <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                Customer Information
-              </h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Customer Name <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={customerInfo.name}
-                    onChange={(e) =>
-                      setCustomerInfo({ ...customerInfo, name: e.target.value })
-                    }
-                    placeholder="Enter customer name"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Phone <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerInfo.phone}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        phone: e.target.value,
-                      })
-                    }
-                    placeholder="XXXXXXXXXX"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={customerInfo.email}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        email: e.target.value,
-                      })
-                    }
-                    placeholder="customer@example.com"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    value={customerInfo.address}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        address: e.target.value,
-                      })
-                    }
-                    placeholder="Customer address"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    State
-                  </label>
-                  <input
-                    type="text"
-                    value={customerInfo.state}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        state: e.target.value,
-                      })
-                    }
-                    placeholder="Maharashtra"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    GSTIN
-                  </label>
-                  <input
-                    type="text"
-                    value={customerInfo.gstin}
-                    onChange={(e) =>
-                      setCustomerInfo({
-                        ...customerInfo,
-                        gstin: e.target.value,
-                      })
-                    }
-                    placeholder="GST Number"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                  />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Items */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-heading text-lg font-semibold text-foreground">
-                  Items
+            {/* Step 2: Customer Information */}
+            {currentStep === 2 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+              >
+                <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
+                  Customer Information
                 </h2>
-                <button
-                  onClick={addItem}
-                  className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-all hover:bg-secondary/90"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Item
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="space-y-4 rounded-lg border border-border bg-muted/30 p-4"
-                  >
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Select Item from Catalog
-                      </label>
-                      <ItemSelector
-                        onItemSelect={(selectedItem) =>
-                          handleItemSelect(selectedItem, item.id)
-                        }
-                      />
-                    </div>
-
-                    {item.imageUrl && (
-                      <div className="flex items-center gap-3 rounded-lg bg-background p-3 border border-border">
-                        <img
-                          src={item.imageUrl}
-                          alt={item.description}
-                          className="w-16 h-16 object-cover rounded border border-border"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {item.description}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Selected item preview
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid gap-4 md:grid-cols-20">
-                      <div className="md:col-span-10">
-                        <label className="mb-2 block text-sm font-medium text-foreground">
-                          Description
-                        </label>
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={(e) =>
-                            updateItem(item.id, "description", e.target.value)
-                          }
-                          placeholder="Item description"
-                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                        />
-                      </div>
-                      <div className="md:col-span-3">
-                        <label className="mb-2 block text-sm font-medium text-foreground">
-                          Quantity
-                        </label>
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateItem(
-                              item.id,
-                              "quantity",
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                          min="1"
-                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                        />
-                      </div>
-                      <div className="md:col-span-3">
-                        <label className="mb-2 block text-sm font-medium text-foreground">
-                          Rate (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={item.rate}
-                          onChange={(e) =>
-                            updateItem(
-                              item.id,
-                              "rate",
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                          min="0"
-                          step="0.01"
-                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                        />
-                      </div>
-                      <div className="md:col-span-3">
-                        <label className="mb-2 block text-sm font-medium text-foreground">
-                          Amount
-                        </label>
-                        <div className="flex h-10 items-center rounded-lg border border-input bg-muted px-3 text-sm font-medium text-foreground">
-                          ₹{item.amount.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="flex items-end md:col-span-1">
-                        <button
-                          onClick={() => removeItem(item.id)}
-                          disabled={items.length === 1}
-                          className="flex h-10 w-full items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive transition-all hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Customer Name <span className="text-destructive">*</span>
+                    </label>
+                    <CustomerSelector
+                      value={customerInfo.name}
+                      onCustomerSelect={(customer) => {
+                        setCustomerInfo({
+                          name: customer.name,
+                          email: customer.email,
+                          phone: customer.phone,
+                          address: customer.address,
+                          state: customer.state,
+                          gstin: customer.gstin,
+                        });
+                      }}
+                    />
                   </div>
-                ))}
-              </div>
-            </motion.div>
 
-            {/* Notes */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            >
-              <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                Additional Notes
-              </h2>
-              <textarea
-                value={invoiceDetails.notes}
-                onChange={(e) =>
-                  setInvoiceDetails({
-                    ...invoiceDetails,
-                    notes: e.target.value,
-                  })
-                }
-                placeholder="Add any additional notes or payment terms..."
-                rows="4"
-                className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-              />
-            </motion.div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Phone <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={customerInfo.phone}
+                      onChange={(e) =>
+                        setCustomerInfo({
+                          ...customerInfo,
+                          phone: e.target.value,
+                        })
+                      }
+                      placeholder="XXXXXXXXXX"
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={customerInfo.email}
+                      onChange={(e) =>
+                        setCustomerInfo({
+                          ...customerInfo,
+                          email: e.target.value,
+                        })
+                      }
+                      placeholder="customer@example.com"
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={customerInfo.address}
+                      onChange={(e) =>
+                        setCustomerInfo({
+                          ...customerInfo,
+                          address: e.target.value,
+                        })
+                      }
+                      placeholder="Customer address"
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      State
+                    </label>
+                    <input
+                      type="text"
+                      value={customerInfo.state}
+                      onChange={(e) =>
+                        setCustomerInfo({
+                          ...customerInfo,
+                          state: e.target.value,
+                        })
+                      }
+                      placeholder="Maharashtra"
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      GSTIN
+                    </label>
+                    <input
+                      type="text"
+                      value={customerInfo.gstin}
+                      onChange={(e) =>
+                        setCustomerInfo({
+                          ...customerInfo,
+                          gstin: e.target.value,
+                        })
+                      }
+                      placeholder="GST Number"
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 3: Items */}
+            {currentStep === 3 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="font-heading text-lg font-semibold text-foreground">
+                    Items
+                  </h2>
+                  <button
+                    onClick={addItem}
+                    className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-all hover:bg-secondary/90"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Item
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="space-y-4 rounded-lg border border-border bg-muted/30 p-4"
+                    >
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Select Item from Catalog
+                        </label>
+                        <ItemSelector
+                          onItemSelect={(selectedItem) =>
+                            handleItemSelect(selectedItem, item.id)
+                          }
+                        />
+                      </div>
+
+                      {item.imageUrl && (
+                        <div className="flex items-center gap-3 rounded-lg bg-background p-3 border border-border">
+                          <img
+                            src={item.imageUrl}
+                            alt={item.description}
+                            className="w-16 h-16 object-cover rounded border border-border"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {item.description}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Selected item preview
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid gap-4 md:grid-cols-20">
+                        <div className="md:col-span-10">
+                          <label className="mb-2 block text-sm font-medium text-foreground">
+                            Description
+                          </label>
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) =>
+                              updateItem(item.id, "description", e.target.value)
+                            }
+                            placeholder="Item description"
+                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                          />
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className="mb-2 block text-sm font-medium text-foreground">
+                            Quantity
+                          </label>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateItem(
+                                item.id,
+                                "quantity",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            min="1"
+                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                          />
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className="mb-2 block text-sm font-medium text-foreground">
+                            Rate (₹)
+                          </label>
+                          <input
+                            type="number"
+                            value={item.rate}
+                            onChange={(e) =>
+                              updateItem(
+                                item.id,
+                                "rate",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            min="0"
+                            step="0.01"
+                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                          />
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className="mb-2 block text-sm font-medium text-foreground">
+                            Amount
+                          </label>
+                          <div className="flex h-10 items-center rounded-lg border border-input bg-muted px-3 text-sm font-medium text-foreground">
+                            ₹{item.amount.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="flex items-end md:col-span-1">
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            disabled={items.length === 1}
+                            className="flex h-10 w-full items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive transition-all hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 4: Notes & Review */}
+            {currentStep === 4 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+              >
+                <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
+                  Additional Notes
+                </h2>
+                <textarea
+                  value={invoiceDetails.notes}
+                  onChange={(e) =>
+                    setInvoiceDetails({
+                      ...invoiceDetails,
+                      notes: e.target.value,
+                    })
+                  }
+                  placeholder="Add any additional notes or payment terms..."
+                  rows="4"
+                  className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                />
+              </motion.div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex gap-3 mt-6">
+              {currentStep > 1 && (
+                <button
+                  onClick={prevStep}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 font-medium text-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Previous
+                </button>
+              )}
+              {currentStep < totalSteps && (
+                <button
+                  onClick={nextStep}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-3 font-medium text-secondary-foreground"
+                >
+                  Next
+                  <ArrowLeft className="h-4 w-4 rotate-180" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Summary Sidebar */}
-          <div className="space-y-6">
+          <div
+            className={`space-y-6 ${
+              currentStep === 4 ? "block" : "hidden lg:block"
+            }`}
+          >
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}

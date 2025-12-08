@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -7,18 +7,29 @@ import {
   CheckCircle,
   AlertCircle,
   Package,
-  List,
-  X,
   RefreshCw,
   Edit,
   Trash2,
+  Plus,
+  Search,
+  X,
+  TrendingUp,
+  Grid,
+  DollarSign,
+  Tag,
+  ShoppingBag,
 } from "lucide-react";
 import {
   createItem,
   getAllItemsSimple,
   updateItem,
   deleteItem,
+  restoreItem,
 } from "@/services/api";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface Currency {
   code: string;
@@ -64,17 +75,231 @@ interface FormData {
   Is_disabled: boolean;
 }
 
+// ============================================================================
+// ITEM CARD COMPONENT (Memoized)
+// ============================================================================
+
+interface ItemCardProps {
+  item: Item;
+  onEdit: (item: Item) => void;
+  onDelete: (itemId: number) => void;
+  onRestore: (itemId: number) => void;
+}
+
+const ItemCard = memo(
+  ({ item, onEdit, onDelete, onRestore }: ItemCardProps) => {
+    const getCurrencySymbol = (code: string) => {
+      const symbols: Record<string, string> = {
+        USD: "$",
+        EUR: "€",
+        GBP: "£",
+        INR: "₹",
+        JPY: "¥",
+        AUD: "A$",
+        CAD: "C$",
+      };
+      return symbols[code] || code;
+    };
+
+    return (
+      <div className="transaction-card group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-lg hover:scale-[1.02]">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-primary/10 p-2.5">
+                <Package className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-lg line-clamp-1">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-muted-foreground font-mono">
+                  {item.sku}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 items-end">
+              <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                {item.item_type}
+              </span>
+              {item.Is_disabled && (
+                <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
+                  Disabled
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground truncate">
+                {item.unit || "Unit"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Tag className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground truncate">
+                Qty: {item.min_quantity}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 space-y-3">
+          {/* Description */}
+          {item.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {item.description}
+            </p>
+          )}
+
+          {/* Tags */}
+          {item.tags && (
+            <div className="flex flex-wrap gap-1">
+              {item.tags
+                .split(",")
+                .slice(0, 3)
+                .map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                  >
+                    {tag.trim()}
+                  </span>
+                ))}
+            </div>
+          )}
+
+          {/* Price */}
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-sm font-medium text-muted-foreground">
+              Price
+            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">
+                {getCurrencySymbol(item.currency)}
+              </span>
+              <span className="text-xl font-bold text-primary">
+                {item.price.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-2 pt-3">
+            <button
+              onClick={() => onEdit(item)}
+              className="flex items-center justify-center gap-2 rounded-lg border-2 border-border bg-background px-3 py-2 text-sm font-semibold text-foreground transition-all hover:border-primary/30 hover:bg-muted"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </button>
+            {item.Is_disabled ? (
+              <button
+                onClick={() => onRestore(item.id)}
+                className="flex items-center justify-center gap-2 rounded-lg border-2 border-success/30 bg-success/10 px-3 py-2 text-sm font-semibold text-success transition-all hover:border-success/50 hover:bg-success/20"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Restore
+              </button>
+            ) : (
+              <button
+                onClick={() => onDelete(item.id)}
+                className="flex items-center justify-center gap-2 rounded-lg border-2 border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive transition-all hover:border-destructive/50 hover:bg-destructive/20"
+              >
+                <Trash2 className="h-4 w-4" />
+                Disable
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      </div>
+    );
+  }
+);
+
+ItemCard.displayName = "ItemCard";
+
+// ============================================================================
+// STATS COMPONENT (Memoized)
+// ============================================================================
+
+interface StatsProps {
+  totalItems: number;
+  activeItems: number;
+  totalValue: number;
+}
+
+const ItemStats = memo(
+  ({ totalItems, activeItems, totalValue }: StatsProps) => (
+    <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div className="stat-card stat-primary">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Items</p>
+            <p className="text-2xl font-bold text-foreground">{totalItems}</p>
+          </div>
+          <div className="rounded-xl bg-primary/10 p-3">
+            <Package className="h-6 w-6 text-primary" />
+          </div>
+        </div>
+      </div>
+
+      <div className="stat-card stat-success">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Active Items</p>
+            <p className="text-2xl font-bold text-foreground">{activeItems}</p>
+          </div>
+          <div className="rounded-xl bg-success/10 p-3">
+            <TrendingUp className="h-6 w-6 text-success" />
+          </div>
+        </div>
+      </div>
+
+      <div className="stat-card stat-warning">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Value</p>
+            <p className="text-2xl font-bold text-foreground font-mono">
+              ₹{totalValue.toLocaleString("en-IN")}
+            </p>
+          </div>
+          <div className="rounded-xl bg-warning/10 p-3">
+            <DollarSign className="h-6 w-6 text-warning" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+);
+
+ItemStats.displayName = "ItemStats";
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 const ManageItems = () => {
   const navigate = useNavigate();
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [showItemsModal, setShowItemsModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-
-  const [items, setItems] = useState<Item[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -82,7 +307,7 @@ const ManageItems = () => {
     item_type: "Product",
     price: "",
     unit: "",
-    currency: "USD",
+    currency: "INR",
     sku: "",
     tags: "",
     SEO_Tags: "",
@@ -101,43 +326,7 @@ const ManageItems = () => {
     { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
   ];
 
-  const itemTypes: string[] = [
-    "Event",
-    "Product",
-    "Service",
-    "Blog",
-    "Cart item",
-    "Booking",
-    "Job",
-    "Property",
-    "Book",
-    "Profile",
-    "Recipe",
-    "Local Business",
-    "Agent",
-    "Build",
-    "About",
-    "Application",
-    "Task",
-    "Note",
-    "Video",
-    "Lenders",
-    "Plumbers",
-    "Media",
-    "Appraisals",
-    "Photographers",
-    "Plan",
-    "Subscription",
-    "Vendors",
-    "Contributors",
-    "Newsletters",
-    "Course",
-    "Minerals",
-    "Jewelry",
-    "Classes",
-    "Instructor",
-    "Membership",
-  ];
+  const itemTypes: string[] = ["Event", "Product", "Service"];
 
   // Load items on mount
   useEffect(() => {
@@ -150,14 +339,41 @@ const ManageItems = () => {
       setError(null);
       const response = await getAllItemsSimple();
       setItems(response.items);
-      console.log("[ManageItems] ✅ Loaded items:", response.items.length);
     } catch (err: any) {
-      console.error("[ManageItems] ❌ Failed to load items:", err);
       setError(err.message || "Failed to load items");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleRefresh = useCallback(() => {
+    loadItems();
+  }, []);
+
+  // Filter items based on search
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return items;
+
+    const query = searchQuery.toLowerCase();
+    return items.filter(
+      (item) =>
+        item.title.toLowerCase().includes(query) ||
+        item.description?.toLowerCase().includes(query) ||
+        item.sku.toLowerCase().includes(query) ||
+        item.tags?.toLowerCase().includes(query)
+    );
+  }, [items, searchQuery]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalItems = items.length;
+    const activeItems = items.filter((item) => !item.Is_disabled).length;
+    const totalValue = items
+      .filter((item) => !item.Is_disabled)
+      .reduce((sum, item) => sum + item.price, 0);
+
+    return { totalItems, activeItems, totalValue };
+  }, [items]);
 
   const handleInputChange = (
     field: keyof FormData,
@@ -214,36 +430,24 @@ const ManageItems = () => {
 
       let response;
 
-      if (isEditing && editingItem) {
-        // UPDATE existing item
-        console.log("[ManageItems] 📤 Updating item:", editingItem.id, payload);
+      if (editingItem) {
         response = await updateItem(editingItem.id, payload);
-        console.log("[ManageItems] ✅ Item updated:", response);
-
-        // Update in local state
         setItems((prev) =>
           prev.map((item) => (item.id === editingItem.id ? response : item))
         );
       } else {
-        // CREATE new item
-        console.log("[ManageItems] 📤 Creating item:", payload);
         response = await createItem(payload);
-        console.log("[ManageItems] ✅ Item created:", response);
-
-        // Add to local state
         setItems((prev) => [response, ...prev]);
       }
 
       setSuccess(true);
-
-      // Reset form
       resetForm();
+      setShowForm(false);
 
       setTimeout(() => {
         setSuccess(false);
       }, 3000);
     } catch (err: any) {
-      console.error("[ManageItems] ❌ Save error:", err);
       setError(err.message || "Failed to save item. Please try again.");
     } finally {
       setSaving(false);
@@ -251,7 +455,6 @@ const ManageItems = () => {
   };
 
   const handleEdit = (item: Item) => {
-    setIsEditing(true);
     setEditingItem(item);
     setFormData({
       title: item.title,
@@ -267,7 +470,7 @@ const ManageItems = () => {
       rank: item.rank,
       Is_disabled: item.Is_disabled,
     });
-    setShowItemsModal(false);
+    setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -283,15 +486,25 @@ const ManageItems = () => {
           item.id === itemId ? { ...item, Is_disabled: true } : item
         )
       );
-      console.log("[ManageItems] ✅ Item disabled:", itemId);
     } catch (err: any) {
-      console.error("[ManageItems] ❌ Delete error:", err);
       setError(err.message || "Failed to disable item");
     }
   };
 
+  const handleRestore = async (itemId: number) => {
+    try {
+      await restoreItem(itemId);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, Is_disabled: false } : item
+        )
+      );
+    } catch (err: any) {
+      setError(err.message || "Failed to restore item");
+    }
+  };
+
   const resetForm = () => {
-    setIsEditing(false);
     setEditingItem(null);
     setFormData({
       title: "",
@@ -299,7 +512,7 @@ const ManageItems = () => {
       item_type: "Product",
       price: "",
       unit: "",
-      currency: "USD",
+      currency: "INR",
       sku: "",
       tags: "",
       SEO_Tags: "",
@@ -309,449 +522,430 @@ const ManageItems = () => {
     });
   };
 
-  const ItemsModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 p-6">
-          <div className="flex items-center gap-3">
-            <List className="h-6 w-6 text-blue-600" />
-            <h2 className="text-2xl font-bold text-gray-900">All Items</h2>
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
-              {items.length}
-            </span>
-          </div>
-          <button
-            onClick={() => setShowItemsModal(false)}
-            className="rounded-full p-2 transition-colors hover:bg-gray-100"
-          >
-            <X className="h-6 w-6 text-gray-500" />
-          </button>
-        </div>
+  const handleAddNew = () => {
+    resetForm();
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-        {/* Modal Body */}
-        <div className="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
-          {loading ? (
-            <div className="py-12 text-center">
-              <Loader2 className="mx-auto h-16 w-16 animate-spin text-blue-600" />
-              <p className="mt-4 text-gray-500">Loading items...</p>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="py-12 text-center">
-              <Package className="mx-auto h-16 w-16 text-gray-300" />
-              <p className="mt-4 text-gray-500">No items added yet</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border border-gray-200 bg-white p-4 transition-all hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">
-                          {item.title}
-                        </h3>
-                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
-                          {item.item_type}
-                        </span>
-                        {item.Is_disabled && (
-                          <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
-                            Disabled
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {item.description}
-                      </p>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        <span>
-                          <strong>Price:</strong> {item.currency} {item.price}
-                        </span>
-                        <span>
-                          <strong>SKU:</strong> {item.sku}
-                        </span>
-                        {item.unit && (
-                          <span>
-                            <strong>Unit:</strong> {item.unit}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700 transition-all hover:bg-blue-200"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        disabled={item.Is_disabled}
-                        className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 transition-all hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {item.Is_disabled ? "Disabled" : "Delete"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  const handleCancelForm = () => {
+    resetForm();
+    setShowForm(false);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-28">
-      <div className="mx-auto max-w-5xl p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-28">
+      <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8 fade-in-fast">
         {/* Header */}
-        <div className="mb-6 animate-fadeIn">
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate("/settings")}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition-all hover:shadow-md"
+                className="btn-secondary h-10 w-10 !p-0"
               >
-                <ArrowLeft className="h-5 w-5 text-gray-700" />
+                <ArrowLeft className="h-5 w-5" />
               </button>
               <div>
-                <div className="flex items-center gap-2">
-                  <Package className="h-6 w-6 text-blue-600" />
-                  <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
-                    {isEditing ? "Edit Item" : "Manage Items"}
-                  </h1>
-                </div>
-                <p className="text-sm text-gray-600">
-                  {isEditing
-                    ? "Update item details"
-                    : "Add and manage your inventory items"}
+                <h1 className="font-heading text-2xl font-bold text-foreground md:text-3xl">
+                  Manage Items
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Add and manage your inventory items
                 </p>
               </div>
             </div>
             <div className="flex gap-2">
               <button
-                onClick={loadItems}
+                onClick={handleRefresh}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 disabled:opacity-50"
+                className="btn-secondary"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                 />
                 Refresh
               </button>
-              <button
-                onClick={() => setShowItemsModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
-              >
-                <List className="h-4 w-4" />
-                View All ({items.length})
+              <button onClick={handleAddNew} className="btn-accent">
+                <Plus className="h-4 w-4" />
+                Add Item
               </button>
             </div>
           </div>
 
           {/* Success/Error Messages */}
           {success && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-4 text-green-800 animate-slideDown">
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 p-4 text-success animate-slideDown">
               <CheckCircle className="h-5 w-5" />
               <span className="font-medium">
-                {isEditing
+                {editingItem
                   ? "Item updated successfully!"
-                  : "Item saved successfully!"}
+                  : "Item created successfully!"}
               </span>
             </div>
           )}
 
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-red-800 animate-slideDown">
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-destructive animate-slideDown">
               <AlertCircle className="h-5 w-5" />
               <span className="font-medium">{error}</span>
             </div>
           )}
-        </div>
 
-        {/* Basic Information */}
-        <div
-          className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-          style={{ animationDelay: "0.1s" }}
-        >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Basic Information
-          </h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Item Title *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                placeholder="e.g., New Membership Multi-Year"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  handleInputChange("description", e.target.value)
-                }
-                placeholder="Detailed description of the item"
-                rows={4}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Item Type *
-              </label>
-              <select
-                value={formData.item_type}
-                onChange={(e) => handleInputChange("item_type", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                {itemTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                SKU *
-              </label>
-              <input
-                type="text"
-                value={formData.sku}
-                onChange={(e) => handleInputChange("sku", e.target.value)}
-                placeholder="e.g., PROD-001"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Pricing */}
-        <div
-          className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-          style={{ animationDelay: "0.2s" }}
-        >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Pricing</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Price *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => handleInputChange("price", e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Currency *
-              </label>
-              <select
-                value={formData.currency}
-                onChange={(e) => handleInputChange("currency", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                {currencies.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.symbol} {currency.code} - {currency.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Unit
-              </label>
-              <input
-                type="text"
-                value={formData.unit}
-                onChange={(e) => handleInputChange("unit", e.target.value)}
-                placeholder="e.g., Piece, Box, Hour"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Details */}
-        <div
-          className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm animate-fadeIn"
-          style={{ animationDelay: "0.3s" }}
-        >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            Additional Details
-          </h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Tags
-              </label>
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => handleInputChange("tags", e.target.value)}
-                placeholder="e.g., Premium, Featured"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                SEO Tags
-              </label>
-              <input
-                type="text"
-                value={formData.SEO_Tags}
-                onChange={(e) => handleInputChange("SEO_Tags", e.target.value)}
-                placeholder="SEO keywords"
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Minimum Quantity
-              </label>
-              <input
-                type="number"
-                value={formData.min_quantity}
-                onChange={(e) =>
-                  handleInputChange("min_quantity", parseInt(e.target.value))
-                }
-                min={1}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Rank
-              </label>
-              <input
-                type="number"
-                value={formData.rank}
-                onChange={(e) =>
-                  handleInputChange("rank", parseInt(e.target.value))
-                }
-                min={1}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.Is_disabled}
-                  onChange={(e) =>
-                    handleInputChange("Is_disabled", e.target.checked)
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Disable this item
-                </span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div
-          className="animate-fadeIn space-y-4"
-          style={{ animationDelay: "0.4s" }}
-        >
-          {isEditing && (
-            <button
-              onClick={resetForm}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-gray-100 px-6 py-3 font-medium text-gray-700 transition-all hover:bg-gray-200"
-            >
-              <X className="h-5 w-5" />
-              Cancel Edit
-            </button>
+          {/* Stats */}
+          {!showForm && (
+            <ItemStats
+              totalItems={stats.totalItems}
+              activeItems={stats.activeItems}
+              totalValue={stats.totalValue}
+            />
           )}
 
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                {isEditing ? "Updating..." : "Saving..."}
-              </>
-            ) : (
-              <>
-                <Save className="h-5 w-5" />
-                {isEditing ? "Update Item" : "Save Item"}
-              </>
-            )}
-          </button>
+          {/* Search */}
+          {!showForm && (
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by title, description, SKU, or tags..."
+                className="search-input"
+              />
+            </div>
+          )}
         </div>
+
+        {/* Add/Edit Form */}
+        {showForm && (
+          <div className="mb-6">
+            <div className="rounded-2xl border-2 border-primary/20 bg-card p-6 md:p-8 shadow-lg">
+              {/* Form Header */}
+              <div className="mb-6 pb-4 border-b-2 border-border">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <Package className="h-6 w-6 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-foreground">
+                    {editingItem ? "Edit Item" : "Add New Item"}
+                  </h2>
+                </div>
+                <p className="text-sm text-muted-foreground ml-14">
+                  {editingItem
+                    ? "Update the details of your item"
+                    : "Fill in the details to add a new item to your inventory"}
+                </p>
+              </div>
+
+              {/* Basic Information */}
+              <div className="mb-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Basic Information
+                  </h3>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Item Title <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) =>
+                        handleInputChange("title", e.target.value)
+                      }
+                      placeholder="e.g., Premium Membership"
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) =>
+                        handleInputChange("description", e.target.value)
+                      }
+                      placeholder="Detailed description of the item"
+                      rows={4}
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Item Type <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      value={formData.item_type}
+                      onChange={(e) =>
+                        handleInputChange("item_type", e.target.value)
+                      }
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    >
+                      {itemTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      SKU <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.sku}
+                      onChange={(e) => handleInputChange("sku", e.target.value)}
+                      placeholder="e.g., PROD-001"
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing */}
+              <div className="mb-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Pricing
+                  </h3>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="grid md:grid-cols-3 gap-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Price <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) =>
+                        handleInputChange("price", e.target.value)
+                      }
+                      placeholder="0.00"
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Currency <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      value={formData.currency}
+                      onChange={(e) =>
+                        handleInputChange("currency", e.target.value)
+                      }
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    >
+                      {currencies.map((currency) => (
+                        <option key={currency.code} value={currency.code}>
+                          {currency.symbol} {currency.code} - {currency.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Unit
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.unit}
+                      onChange={(e) =>
+                        handleInputChange("unit", e.target.value)
+                      }
+                      placeholder="e.g., Piece, Box, Hour"
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Details */}
+              <div className="mb-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Additional Details
+                  </h3>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Tags
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tags}
+                      onChange={(e) =>
+                        handleInputChange("tags", e.target.value)
+                      }
+                      placeholder="e.g., Premium, Featured"
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      SEO Tags
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.SEO_Tags}
+                      onChange={(e) =>
+                        handleInputChange("SEO_Tags", e.target.value)
+                      }
+                      placeholder="SEO keywords"
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Minimum Quantity
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.min_quantity}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "min_quantity",
+                          parseInt(e.target.value)
+                        )
+                      }
+                      min={1}
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-foreground">
+                      Rank
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.rank}
+                      onChange={(e) =>
+                        handleInputChange("rank", parseInt(e.target.value))
+                      }
+                      min={1}
+                      className="w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border-2 border-border hover:border-primary/30 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.Is_disabled}
+                        onChange={(e) =>
+                          handleInputChange("Is_disabled", e.target.checked)
+                        }
+                        className="h-5 w-5 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                      />
+                      <span className="text-sm font-semibold text-foreground">
+                        Disable this item
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t-2 border-border">
+                <button
+                  onClick={handleCancelForm}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-muted px-6 py-3.5 font-semibold text-foreground transition-all hover:bg-muted/80 hover:shadow-md"
+                >
+                  <X className="h-5 w-5" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      {editingItem ? "Updating..." : "Saving..."}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-5 w-5" />
+                      {editingItem ? "Update Item" : "Save Item"}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Items Grid */}
+        {!showForm && (
+          <>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Loading items...</p>
+              </div>
+            ) : error && items.length === 0 ? (
+              <div className="error-state">
+                <div className="text-destructive text-4xl mb-2">⚠️</div>
+                <h3 className="font-semibold text-foreground mb-2">
+                  Error Loading Items
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">{error}</p>
+                <button onClick={handleRefresh} className="btn-primary">
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredItems.length > 0 ? (
+                  filteredItems.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onRestore={handleRestore}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full empty-state">
+                    <div className="text-muted-foreground text-5xl mb-4">
+                      📦
+                    </div>
+                    <h3 className="font-semibold text-foreground mb-2">
+                      No Items Found
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchQuery
+                        ? "Try adjusting your search query"
+                        : "Start adding items to your inventory"}
+                    </p>
+                    <button onClick={handleAddNew} className="btn-primary">
+                      Add Your First Item
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
-
-      {/* Items Modal */}
-      {showItemsModal && <ItemsModal />}
-
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out forwards;
-          opacity: 0;
-        }
-
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

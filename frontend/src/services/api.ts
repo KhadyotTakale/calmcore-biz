@@ -533,10 +533,7 @@ async function performFetch<T>(
     }
 
     if (error instanceof TypeError && error.message.includes("fetch")) {
-      throw new Error(
-        `Cannot connect to API at ${baseUrl}. ` +
-          `Please check: 1) Backend is running, 2) URL is correct, 3) CORS is enabled`
-      );
+      throw new Error(`Try Again`);
     }
 
     throw error;
@@ -899,7 +896,7 @@ export async function getBookings(
   perPage = 25
 ): Promise<PaginatedResponse<Booking>> {
   return apiFetch<PaginatedResponse<Booking>>(
-    `/bookings?page=${page}&perPage=${perPage}`,
+    `/bookings?external=${JSON.stringify({ page })}`,
     {},
     true,
     true
@@ -1038,6 +1035,21 @@ export async function createShop(data: CreateShopRequest): Promise<Shop> {
     },
     true,
     true
+  );
+}
+
+export async function updateShop(
+  shopId: string,
+  data: UpdateShopRequest
+): Promise<Shop> {
+  return apiFetch<Shop>(
+    `/shops/${shopId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    true, // useItemsBookingsUrl = true (VITE_XANO_ITEMS_BOOKINGS_URL)
+    true // useCustomerAuth = true (uses Authorization: Bearer token)
   );
 }
 
@@ -1351,6 +1363,7 @@ export default {
   // Shops
   getCurrentShop,
   createShop,
+  updateShop,
   getShopInfo,
   updateShopInfo,
 

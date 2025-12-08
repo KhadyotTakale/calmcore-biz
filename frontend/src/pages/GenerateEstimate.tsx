@@ -285,10 +285,7 @@ const GenerateEstimate = () => {
         gstin,
       };
 
-      console.log("📋 Customer data to save:", customerData);
-
       const booking = await createBooking();
-      console.log("✓ Booking created:", booking.id);
 
       const itemErrors = [];
 
@@ -452,7 +449,7 @@ const GenerateEstimate = () => {
         </motion.div>
 
         {/* Mobile Stepper - Only visible on mobile */}
-        <div className="lg:hidden mb-6">
+        <div className="mb-6">
           <div className="flex items-center mb-4">
             {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex-1 flex items-center">
@@ -518,7 +515,7 @@ const GenerateEstimate = () => {
           {/* Main Form */}
           <div className="space-y-6 lg:col-span-2">
             {/* Step 1: Estimate Details */}
-            {(currentStep === 1 || isDesktop) && (
+            {currentStep === 1 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -590,7 +587,7 @@ const GenerateEstimate = () => {
             )}
 
             {/* Step 2: Customer Information */}
-            {(currentStep === 2 || isDesktop) && (
+            {currentStep === 2 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -710,7 +707,7 @@ const GenerateEstimate = () => {
             )}
 
             {/* Step 3: Items */}
-            {(currentStep === 3 || isDesktop) && (
+            {currentStep === 3 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -848,7 +845,7 @@ const GenerateEstimate = () => {
             )}
 
             {/* Step 4: Notes & Review */}
-            {(currentStep === 4 || isDesktop) && (
+            {currentStep === 4 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -873,8 +870,8 @@ const GenerateEstimate = () => {
               </motion.div>
             )}
 
-            {/* Mobile Navigation Buttons */}
-            <div className="lg:hidden flex gap-3 mt-6">
+            {/* Navigation Buttons */}
+            <div className="flex gap-3 mt-6">
               {currentStep > 1 && (
                 <button
                   onClick={prevStep}

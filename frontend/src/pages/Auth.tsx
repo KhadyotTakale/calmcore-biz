@@ -238,6 +238,8 @@ const Auth = () => {
                         signUpUrl="/auth"
                         afterSignInUrl="/home"
                         appearance={clerkAppearance}
+                        signUpForceRedirectUrl="/auth"
+                        forceRedirectUrl="/home"
                       />
                     ) : (
                       <SignUp
@@ -246,6 +248,7 @@ const Auth = () => {
                         signInUrl="/auth"
                         afterSignUpUrl="/home"
                         appearance={clerkAppearance}
+                        forceRedirectUrl="/home"
                       />
                     )}
                   </Suspense>

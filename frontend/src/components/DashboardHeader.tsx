@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { getBookings, authManager } from "@/services/api";
 import { useUser } from "@clerk/clerk-react";
 import dashboardHero from "@/assets/dashboard-hero.jpg";
+import { useNavigate } from "react-router-dom";
 
 export const DashboardHeader = () => {
+  const navigate = useNavigate();
   const { user, isLoaded } = useUser();
   const [todaySales, setTodaySales] = useState(0);
   const [monthSales, setMonthSales] = useState(0);
@@ -170,13 +172,7 @@ export const DashboardHeader = () => {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur-sm transition-all hover:shadow-md"
-            >
-              <Bell className="h-5 w-5 text-muted-foreground" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              onClick={() => navigate("/settings")}
               className="rounded-xl bg-white/80 p-3 shadow-sm backdrop-blur-sm transition-all hover:shadow-md"
             >
               <Settings className="h-5 w-5 text-muted-foreground" />

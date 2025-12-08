@@ -141,10 +141,6 @@ const Settings = () => {
           icon: Palette,
           label: "Theme",
           description: "Customize app appearance",
-          onClick: () => {
-            // TODO: Navigate to theme settings
-            console.log("Navigate to theme");
-          },
         },
       ],
     },
@@ -155,19 +151,11 @@ const Settings = () => {
           icon: Shield,
           label: "Security",
           description: "Password and authentication",
-          onClick: () => {
-            // TODO: Navigate to security settings
-            console.log("Navigate to security");
-          },
         },
         {
           icon: Download,
           label: "Backup",
           description: "Export and backup data",
-          onClick: () => {
-            // TODO: Navigate to backup page
-            console.log("Navigate to backup");
-          },
         },
       ],
     },

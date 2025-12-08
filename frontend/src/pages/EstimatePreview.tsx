@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
 import { getBookingBySlug, getBooking, getShopInfo } from "@/services/api";
+import { useNavigate } from "react-router-dom";
 
 // Number to words converter
 const numberToWords = (num) => {
@@ -89,6 +90,7 @@ const EstimatePreview = () => {
   const [shopInfo, setShopInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEstimate = async () => {
@@ -102,15 +104,12 @@ const EstimatePreview = () => {
       }
 
       try {
-        console.log("[EstimatePreview] Fetching booking:", bookingSlug);
-
         // Fetch shop info first
         let shopData = null;
         try {
           const shopInfoResponse = await getShopInfo();
           shopData = shopInfoResponse.shops_settings;
           setShopInfo(shopData);
-          console.log("[EstimatePreview] Shop info loaded:", shopData);
         } catch (shopErr) {
           console.error("[EstimatePreview] Failed to load shop info:", shopErr);
           // Continue without shop info - use defaults
@@ -118,8 +117,6 @@ const EstimatePreview = () => {
 
         // Get booking by slug (uses customer auth internally)
         const bookingArray = await getBookingBySlug(bookingSlug);
-
-        console.log("[EstimatePreview] Booking response:", bookingArray);
 
         if (!bookingArray || bookingArray.length === 0) {
           throw new Error("Booking not found");
@@ -249,7 +246,7 @@ const EstimatePreview = () => {
   };
 
   const handleClose = () => {
-    window.close();
+    navigate("/estimates");
   };
 
   if (loading) {

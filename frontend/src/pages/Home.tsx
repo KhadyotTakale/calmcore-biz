@@ -14,20 +14,14 @@ import { DashboardHeader } from "@/components/DashboardHeader";
 // Memoized Quick Actions Section
 const QuickActionsSection = memo(() => (
   <section>
-    <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
+    <h2 className="mb-4 font-heading text-lg font-semibold text-foreground text-center">
       Quick Actions
     </h2>
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:gap-6">
-      <QuickLinkCard
-        icon={Plus}
-        label="Add Transaction"
-        path="/transactions/new"
-        gradient="gradient-accent"
-      />
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-2 lg:gap-6 max-w-4xl mx-auto">
       <QuickLinkCard
         icon={TrendingUp}
         label="Sale Report"
-        path="/reports/sales"
+        path="/reports"
         gradient="gradient-primary"
       />
       <QuickLinkCard
@@ -35,12 +29,6 @@ const QuickActionsSection = memo(() => (
         label="Day Book"
         path="/daybook"
         gradient="gradient-secondary"
-      />
-      <QuickLinkCard
-        icon={TrendingUp}
-        label="Profit & Loss"
-        path="/reports/profit-loss"
-        gradient="bg-gradient-to-br from-secondary to-accent"
       />
     </div>
   </section>

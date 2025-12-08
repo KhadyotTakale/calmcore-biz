@@ -36,17 +36,10 @@ export const useAuthInitialization = () => {
       isInitializingRef.current = true;
       setIsInitializing(true);
 
-      console.log("[Auth] 🚀 Initializing user:", user.id);
-
       authManager.setClerkUserId(user.id);
 
       const existingToken = authManager.getCustomerAuthToken();
       const shopId = localStorage.getItem("shopId");
-
-      console.log("[Auth] 🔍 State:", {
-        hasToken: !!existingToken,
-        hasShopId: !!shopId,
-      });
 
       try {
         const data = await initializeCustomer(
@@ -55,10 +48,7 @@ export const useAuthInitialization = () => {
           user.fullName || ""
         );
 
-        console.log("[Auth] ✅ Customer initialized");
-
         if (data.hasOwnShop) {
-          console.log("[Auth] ✅ User has shop");
           setHasOwnShop(true);
 
           const apiShopId = data.customer?._shops?.id;
@@ -66,7 +56,6 @@ export const useAuthInitialization = () => {
             localStorage.setItem("shopId", apiShopId);
           }
         } else {
-          console.log("[Auth] ⚠️  No shop found");
           setHasOwnShop(false);
           localStorage.removeItem("shopId");
         }
@@ -104,7 +93,6 @@ export const useAuthInitialization = () => {
 
     // User has shop - redirect from public pages to home
     if (hasOwnShop && (path === "/" || path === "/auth")) {
-      console.log("[Auth] Redirecting authenticated user to /home");
       navigate("/home", { replace: true });
     }
     // ✅ REMOVED: No longer redirect users with shops away from company-info
@@ -116,7 +104,6 @@ export const useAuthInitialization = () => {
       !isPublicPath &&
       path !== "/company-info"
     ) {
-      console.log("[Auth] No shop, redirecting to /company-info");
       navigate("/company-info", { replace: true });
     }
   }, [isInitializing, hasOwnShop, location.pathname, navigate]);
