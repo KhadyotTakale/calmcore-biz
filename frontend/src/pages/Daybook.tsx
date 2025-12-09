@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Loader2,
@@ -15,26 +15,71 @@ import {
   FileText,
 } from "lucide-react";
 import { getBookings } from "@/services/api";
+import { usePDFGenerator } from "@/hooks/usePDFGenerator";
 
-const TransactionCard = ({ booking, delay = 0 }) => {
-  const navigate = useNavigate();
+// ============================================================================
+// TYPES
+// ============================================================================
 
+interface Booking {
+  id: number;
+  booking_slug: string;
+  created_at: number;
+  _booking_items_of_bookings?: {
+    items: any[];
+  };
+  _customers?: any;
+}
+
+interface NormalizedBooking {
+  id: number;
+  bookingSlug: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  estimateNumber: string;
+  estimateDate: string;
+  formattedDate: string;
+  formattedTime: string;
+  validUntil: string;
+  itemsCount: number;
+  totalAmount: number;
+  status: "active" | "expired";
+  items: any[];
+}
+
+interface DaybookStats {
+  totalTransactions: number;
+  totalRevenue: number;
+  customersCount: number;
+}
+
+// ============================================================================
+// DATA NORMALIZATION
+// ============================================================================
+
+const normalizeBooking = (booking: Booking): NormalizedBooking => {
   const items = booking._booking_items_of_bookings?.items || [];
-  const customer = booking._customers;
   const firstItem = items[0];
   const bookingInfo = firstItem?.booking_items_info;
+  const customer = booking._customers;
 
+  // Extract customer info
   const customerName =
     bookingInfo?.customer_info?.name || customer?.Full_name || "Guest Customer";
   const customerPhone =
     bookingInfo?.customer_info?.phone || customer?.cust_info?.phone || "N/A";
+  const customerEmail =
+    bookingInfo?.customer_info?.email || customer?.email || "";
 
+  // Calculate total amount
   const totalAmount = items.reduce((sum, item) => {
     const quantity = item.quantity || 1;
     const price = parseFloat(item.price) || item._items?.price || 0;
     return sum + quantity * price;
   }, 0);
 
+  // Estimate details
   const estimateNumber =
     bookingInfo?.estimate_details?.estimateNumber ||
     `EST-${booking.id.toString().slice(-6)}`;
@@ -58,65 +103,85 @@ const TransactionCard = ({ booking, delay = 0 }) => {
     }
   );
 
-  const handleDownload = (e) => {
-    e.stopPropagation();
-    window.open(`/estimate-preview?id=${booking.booking_slug}`, "_blank");
+  // Status
+  const now = new Date();
+  const validDate = validUntil ? new Date(validUntil) : null;
+  const status = validDate && validDate < now ? "expired" : "active";
+
+  return {
+    id: booking.id,
+    bookingSlug: booking.booking_slug,
+    customerName,
+    customerPhone,
+    customerEmail,
+    estimateNumber,
+    estimateDate,
+    formattedDate,
+    formattedTime,
+    validUntil,
+    itemsCount: items.length,
+    totalAmount,
+    status,
+    items,
   };
+};
 
-  const handleSendToCustomer = (e) => {
-    e.stopPropagation();
-    const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.booking_slug}`;
-    const message = `Hello ${customerName}! \n\nThank you for your interest in Mrudgandh services. \n\nPlease find your estimate here:\n${shareableLink}\n\n${
-      validUntil
-        ? `Valid until: ${new Date(validUntil).toLocaleDateString("en-IN")}\n`
-        : ""
-    }Total Amount: ₹${totalAmount.toFixed(
-      2
-    )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+// ============================================================================
+// TRANSACTION CARD COMPONENT (Memoized)
+// ============================================================================
 
-    const phone = customerPhone.replace(/\D/g, "");
-    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
-      message
-    )}`;
+interface TransactionCardProps {
+  booking: NormalizedBooking;
+}
 
-    window.open(whatsappUrl, "_blank");
-  };
+const TransactionCard = memo(({ booking }: TransactionCardProps) => {
+  const navigate = useNavigate();
+  const { generateAndDownloadPDF, isGenerating } = usePDFGenerator();
 
-  const handleCardClick = () => {
-    navigate(`/estimate-preview?id=${booking.booking_slug}`);
-  };
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      window.open(`/estimate-preview?id=${booking.bookingSlug}`, "_blank");
+    },
+    [booking.bookingSlug]
+  );
 
-  const handleConvertToInvoice = (e) => {
-    e.stopPropagation();
-    navigate(`/invoice-preview?id=${booking.booking_slug}`);
-  };
-  const getStatusBadge = () => {
-    const now = new Date();
-    const validDate = validUntil ? new Date(validUntil) : null;
+  const handleSendToCustomer = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
 
-    if (validDate && validDate < now) {
-      return (
-        <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
-          Expired
-        </span>
-      );
-    }
-    return (
-      <span className="rounded-full bg-success/10 px-2 py-1 text-xs font-medium text-success">
-        Active
-      </span>
-    );
-  };
+      if (booking.customerPhone === "N/A") return;
+
+      await generateAndDownloadPDF({
+        bookingSlug: booking.bookingSlug,
+        customerName: booking.customerName,
+        customerPhone: booking.customerPhone,
+        estimateNumber: booking.estimateNumber,
+        totalAmount: booking.totalAmount,
+        validUntil: booking.validUntil,
+      });
+    },
+    [booking, generateAndDownloadPDF]
+  );
+
+  const handleCardClick = useCallback(() => {
+    navigate(`/estimate-preview?id=${booking.bookingSlug}`);
+  }, [navigate, booking.bookingSlug]);
+
+  const handleConvertToInvoice = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      navigate(`/invoice-preview?id=${booking.bookingSlug}`);
+    },
+    [navigate, booking.bookingSlug]
+  );
 
   return (
     <div
       onClick={handleCardClick}
-      style={{
-        opacity: 0,
-        animation: `fadeInUp 0.3s ease-out ${delay}s forwards`,
-      }}
-      className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer"
+      className="transaction-card group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] cursor-pointer"
     >
+      {/* Header */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -125,38 +190,52 @@ const TransactionCard = ({ booking, delay = 0 }) => {
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-lg">
-                {customerName}
+                {booking.customerName}
               </h3>
               <p className="text-xs text-muted-foreground font-mono">
-                {estimateNumber}
+                {booking.estimateNumber}
               </p>
             </div>
           </div>
-          {getStatusBadge()}
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-medium ${
+              booking.status === "expired"
+                ? "bg-destructive/10 text-destructive"
+                : "bg-success/10 text-success"
+            }`}
+          >
+            {booking.status === "expired" ? "Expired" : "Active"}
+          </span>
         </div>
 
+        {/* Info Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{formattedTime}</span>
+            <span className="text-muted-foreground">
+              {booking.formattedTime}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">
-              {items.length} item{items.length !== 1 ? "s" : ""}
+              {booking.itemsCount} item{booking.itemsCount !== 1 ? "s" : ""}
             </span>
           </div>
         </div>
       </div>
 
+      {/* Content */}
       <div className="p-4 space-y-3">
+        {/* Phone */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Phone</span>
           <span className="text-sm font-medium text-foreground">
-            {customerPhone}
+            {booking.customerPhone}
           </span>
         </div>
 
+        {/* Amount */}
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <span className="text-sm font-medium text-muted-foreground">
             Total Amount
@@ -164,7 +243,7 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           <div className="flex items-center gap-1">
             <IndianRupee className="h-4 w-4 text-primary" />
             <span className="text-xl font-bold text-primary">
-              {totalAmount.toLocaleString("en-IN", {
+              {booking.totalAmount.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -172,63 +251,81 @@ const TransactionCard = ({ booking, delay = 0 }) => {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="grid grid-cols-3 gap-2 pt-3">
-          <button
-            onClick={handleDownload}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted"
-          >
+          <button onClick={handleDownload} className="btn-secondary">
             <Download className="h-4 w-4" />
             Download
           </button>
           <button
             onClick={handleSendToCustomer}
-            disabled={customerPhone === "N/A"}
-            className="flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={booking.customerPhone === "N/A" || isGenerating}
+            className="btn-success"
           >
-            <Send className="h-4 w-4" />
-            Send
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            {isGenerating ? "Sending..." : "Send"}
           </button>
-          <button
-            onClick={handleConvertToInvoice}
-            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
-          >
+          <button onClick={handleConvertToInvoice} className="btn-primary">
             <FileText className="h-4 w-4" />
             Invoice
           </button>
         </div>
       </div>
 
+      {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
-};
+});
+
+TransactionCard.displayName = "TransactionCard";
+
+// ============================================================================
+// STATS CARD COMPONENT (Memoized)
+// ============================================================================
+
+interface StatsCardProps {
+  icon: any;
+  label: string;
+  value: string | number;
+  gradient: string;
+}
+
+const StatsCard = memo(
+  ({ icon: Icon, label, value, gradient }: StatsCardProps) => (
+    <div className={`stat-card ${gradient}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+        </div>
+        <div className="rounded-xl bg-primary/10 p-3">
+          <Icon className="h-6 w-6 text-primary" />
+        </div>
+      </div>
+    </div>
+  )
+);
+
+StatsCard.displayName = "StatsCard";
+
+// ============================================================================
+// MAIN DAYBOOK COMPONENT
+// ============================================================================
 
 const Daybook = () => {
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState([]);
+  const [bookings, setBookings] = useState<NormalizedBooking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchTodayBookings();
-  }, []);
-
-  const fetchTodayBookings = async () => {
+  // Fetch today's bookings
+  const fetchTodayBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -241,89 +338,79 @@ const Daybook = () => {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const todayBookings = response.items.filter((booking) => {
+      const todayBookings = response.items.filter((booking: Booking) => {
         const bookingDate = new Date(booking.created_at);
         return bookingDate >= today && bookingDate < tomorrow;
       });
 
-      setBookings(todayBookings);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching today's bookings:", err);
+      // Normalize bookings
+      const normalized = todayBookings.map(normalizeBooking);
+      setBookings(normalized);
+    } catch (err: any) {
       setError(err.message || "Failed to load today's estimates");
+    } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleRefresh = () => {
+  useEffect(() => {
     fetchTodayBookings();
-  };
+  }, [fetchTodayBookings]);
 
-  // Filter bookings based on search query
-  const filteredBookings = bookings.filter((booking) => {
-    const items = booking._booking_items_of_bookings?.items || [];
-    const firstItem = items[0];
-    const bookingInfo = firstItem?.booking_items_info;
-    const customer = booking._customers;
+  // Filter bookings based on search (memoized)
+  const filteredBookings = useMemo(() => {
+    if (!searchQuery) return bookings;
 
-    const customerName = (
-      bookingInfo?.customer_info?.name ||
-      customer?.Full_name ||
-      ""
-    ).toLowerCase();
-    const customerPhone = (
-      bookingInfo?.customer_info?.phone ||
-      customer?.cust_info?.phone ||
-      ""
-    ).toLowerCase();
-    const bookingSlug = (booking.booking_slug || "").toLowerCase();
     const query = searchQuery.toLowerCase();
-
-    return (
-      customerName.includes(query) ||
-      customerPhone.includes(query) ||
-      bookingSlug.includes(query)
+    return bookings.filter(
+      (booking) =>
+        booking.customerName.toLowerCase().includes(query) ||
+        booking.customerPhone.toLowerCase().includes(query) ||
+        booking.bookingSlug.toLowerCase().includes(query) ||
+        booking.estimateNumber.toLowerCase().includes(query)
     );
-  });
+  }, [bookings, searchQuery]);
 
-  // Calculate statistics for today
-  const totalAmount = bookings.reduce((sum, booking) => {
-    const items = booking._booking_items_of_bookings?.items || [];
-    return (
-      sum +
-      items.reduce((itemSum, item) => {
-        const quantity = item.quantity || 1;
-        const price = parseFloat(item.price) || item._items?.price || 0;
-        return itemSum + quantity * price;
-      }, 0)
+  // Calculate statistics (memoized)
+  const stats = useMemo((): DaybookStats => {
+    const totalRevenue = bookings.reduce(
+      (sum, booking) => sum + booking.totalAmount,
+      0
     );
-  }, 0);
 
-  const totalTransactions = bookings.length;
-  const customersCount = new Set(
-    bookings
-      .filter((b) => {
-        const items = b._booking_items_of_bookings?.items || [];
-        const bookingInfo = items[0]?.booking_items_info;
-        return bookingInfo?.customer_info?.name || b._customers?.id;
-      })
-      .map((b) => {
-        const items = b._booking_items_of_bookings?.items || [];
-        const bookingInfo = items[0]?.booking_items_info;
-        return bookingInfo?.customer_info?.name || b._customers?.id;
-      })
-  ).size;
+    const customersCount = new Set(
+      bookings
+        .filter((b) => b.customerName !== "Guest Customer")
+        .map((b) => b.customerName)
+    ).size;
 
-  const todayDate = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+    return {
+      totalTransactions: bookings.length,
+      totalRevenue,
+      customersCount,
+    };
+  }, [bookings]);
+
+  // Today's date (memoized)
+  const todayDate = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-IN", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    []
+  );
+
+  const handleRefresh = useCallback(() => {
+    fetchTodayBookings();
+  }, [fetchTodayBookings]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-28">
-      <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8 fade-in-fast">
+        {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -342,7 +429,7 @@ const Daybook = () => {
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-all hover:bg-muted disabled:opacity-50"
+              className="btn-secondary"
             >
               <RefreshCw
                 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -353,53 +440,24 @@ const Daybook = () => {
 
           {/* Stats Cards */}
           <div className="grid gap-4 md:grid-cols-3 mb-6">
-            <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Today's Estimates
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {totalTransactions}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-primary/10 p-3">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-gradient-to-br from-success/10 to-success/5 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Today's Revenue
-                  </p>
-                  <p className="text-2xl font-bold text-foreground font-mono">
-                    ₹{totalAmount.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-success/10 p-3">
-                  <IndianRupee className="h-6 w-6 text-success" />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-gradient-to-br from-warning/10 to-warning/5 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Today's Customers
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {customersCount}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-warning/10 p-3">
-                  <User className="h-6 w-6 text-warning" />
-                </div>
-              </div>
-            </div>
+            <StatsCard
+              icon={TrendingUp}
+              label="Today's Estimates"
+              value={stats.totalTransactions}
+              gradient="stat-primary"
+            />
+            <StatsCard
+              icon={IndianRupee}
+              label="Today's Revenue"
+              value={`₹${stats.totalRevenue.toLocaleString("en-IN")}`}
+              gradient="stat-success"
+            />
+            <StatsCard
+              icon={User}
+              label="Today's Customers"
+              value={stats.customersCount}
+              gradient="stat-warning"
+            />
           </div>
 
           {/* Search */}
@@ -410,7 +468,7 @@ const Daybook = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search today's estimates by customer name, phone, or booking ID..."
-              className="w-full rounded-xl border border-input bg-background pl-10 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="search-input"
             />
           </div>
         </div>
@@ -427,16 +485,13 @@ const Daybook = () => {
 
         {/* Error State */}
         {error && !loading && (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-6 text-center">
+          <div className="error-state">
             <div className="text-destructive text-4xl mb-2">⚠️</div>
             <h3 className="font-semibold text-foreground mb-2">
               Error Loading Estimates
             </h3>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <button
-              onClick={handleRefresh}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
-            >
+            <button onClick={handleRefresh} className="btn-primary">
               Try Again
             </button>
           </div>
@@ -446,32 +501,26 @@ const Daybook = () => {
         {!loading && !error && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredBookings.length > 0 ? (
-              filteredBookings.map((booking, index) => (
-                <TransactionCard
-                  key={booking.id}
-                  booking={booking}
-                  delay={index * 0.05}
-                />
+              filteredBookings.map((booking) => (
+                <TransactionCard key={booking.id} booking={booking} />
               ))
             ) : (
-              <div className="col-span-full">
-                <div className="rounded-2xl border border-border bg-card p-12 text-center">
-                  {/* <div className="text-muted-foreground text-5xl mb-4">📅</div> */}
-                  <h3 className="font-semibold text-foreground mb-2">
-                    No Estimates Today
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {searchQuery
-                      ? "No estimates match your search"
-                      : "No estimates have been created today yet"}
-                  </p>
-                  <button
-                    onClick={() => navigate("/generate-estimate")}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
-                  >
-                    Create First Estimate
-                  </button>
-                </div>
+              <div className="col-span-full empty-state">
+                <div className="text-muted-foreground text-5xl mb-4">📅</div>
+                <h3 className="font-semibold text-foreground mb-2">
+                  No Estimates Today
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {searchQuery
+                    ? "No estimates match your search"
+                    : "No estimates have been created today yet"}
+                </p>
+                <button
+                  onClick={() => navigate("/generate-estimate")}
+                  className="btn-primary"
+                >
+                  Create First Estimate
+                </button>
               </div>
             )}
           </div>

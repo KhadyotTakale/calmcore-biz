@@ -164,21 +164,32 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
   );
 
   const handleSendToCustomer = useCallback(
-    async (e: React.MouseEvent) => {
+    (e: React.MouseEvent) => {
       e.stopPropagation();
 
       if (booking.customerPhone === "N/A") return;
 
-      await generateAndDownloadPDF({
-        bookingSlug: booking.bookingSlug,
-        customerName: booking.customerName,
-        customerPhone: booking.customerPhone,
-        estimateNumber: booking.estimateNumber,
-        totalAmount: booking.totalAmount,
-        validUntil: booking.validUntil,
-      });
+      const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.bookingSlug}`;
+      const message = `Hello ${
+        booking.customerName
+      }! 👋\n\nThank you for your interest in Elegant Enterprises. ✨\n\nPlease find your estimate here:\n${shareableLink}\n\n${
+        booking.validUntil
+          ? `Valid Until: ${new Date(booking.validUntil).toLocaleDateString(
+              "en-IN"
+            )}\n`
+          : ""
+      }Estimated Amount: ₹${booking.totalAmount.toFixed(
+        2
+      )}\n\nThis estimate is valid for 30 days from the date of issue.\n\nTeam Elegant Enterprises`;
+
+      const phone = booking.customerPhone.replace(/\D/g, "");
+      const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+        message
+      )}`;
+
+      window.open(whatsappUrl, "_blank");
     },
-    [booking, generateAndDownloadPDF]
+    [booking]
   );
 
   const handleCardClick = useCallback(() => {

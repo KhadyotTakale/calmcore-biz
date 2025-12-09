@@ -14,14 +14,15 @@ import {
   Search,
   X,
   TrendingUp,
-  Grid,
   DollarSign,
   Tag,
   ShoppingBag,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   createItem,
-  getAllItemsSimple,
+  getItems,
   updateItem,
   deleteItem,
   restoreItem,
@@ -73,6 +74,15 @@ interface FormData {
   min_quantity: number;
   rank: number;
   Is_disabled: boolean;
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
 }
 
 // ============================================================================
@@ -287,6 +297,117 @@ const ItemStats = memo(
 ItemStats.displayName = "ItemStats";
 
 // ============================================================================
+// PAGINATION COMPONENT
+// ============================================================================
+
+interface PaginationProps {
+  pagination: PaginationInfo;
+  onPageChange: (page: number) => void;
+  loading: boolean;
+}
+
+const Pagination = memo(
+  ({ pagination, onPageChange, loading }: PaginationProps) => {
+    const {
+      currentPage,
+      totalPages,
+      totalItems,
+      itemsPerPage,
+      hasNextPage,
+      hasPrevPage,
+    } = pagination;
+
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+    // Generate page numbers to show
+    const getPageNumbers = () => {
+      const pages: (number | string)[] = [];
+      const maxVisiblePages = 5;
+
+      if (totalPages <= maxVisiblePages) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+
+        if (currentPage > 3) {
+          pages.push("...");
+        }
+
+        const start = Math.max(2, currentPage - 1);
+        const end = Math.min(totalPages - 1, currentPage + 1);
+
+        for (let i = start; i <= end; i++) {
+          pages.push(i);
+        }
+
+        if (currentPage < totalPages - 2) {
+          pages.push("...");
+        }
+
+        if (totalPages > 1) {
+          pages.push(totalPages);
+        }
+      }
+
+      return pages;
+    };
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 px-4 py-3 bg-card rounded-lg border border-border">
+        {/* Info */}
+        <div className="text-sm text-muted-foreground">Showing items</div>
+
+        {/* Page Numbers */}
+        <div className="flex items-center gap-2">
+          {/* Previous Button */}
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={!hasPrevPage || loading}
+            className="p-2 rounded-lg border border-border bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {/* Page Numbers */}
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, index) => (
+              <button
+                key={index}
+                onClick={() => typeof page === "number" && onPageChange(page)}
+                disabled={page === "..." || page === currentPage || loading}
+                className={`min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-colors ${
+                  page === currentPage
+                    ? "bg-primary text-primary-foreground"
+                    : page === "..."
+                    ? "cursor-default text-muted-foreground"
+                    : "border border-border bg-background hover:bg-accent"
+                } disabled:cursor-not-allowed`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+
+          {/* Next Button */}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={!hasNextPage || loading}
+            className="p-2 rounded-lg border border-border bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+);
+
+Pagination.displayName = "Pagination";
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -300,6 +421,15 @@ const ManageItems = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationInfo, setPaginationInfo] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 25,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
 
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -328,17 +458,27 @@ const ManageItems = () => {
 
   const itemTypes: string[] = ["Event", "Product", "Service"];
 
-  // Load items on mount
+  // Load items on mount and when page changes
   useEffect(() => {
-    loadItems();
-  }, []);
+    loadItems(currentPage);
+  }, [currentPage]);
 
-  const loadItems = async () => {
+  const loadItems = async (page: number) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getAllItemsSimple();
+      const response = await getItems(page, 25);
       setItems(response.items);
+
+      // Update pagination info
+      setPaginationInfo({
+        currentPage: response.curPage || page,
+        totalPages: response.pageTotal || 1,
+        totalItems: response.itemsTotal || response.items.length,
+        itemsPerPage: response.perPage || 25,
+        hasNextPage: response.nextPage !== null,
+        hasPrevPage: response.prevPage !== null,
+      });
     } catch (err: any) {
       setError(err.message || "Failed to load items");
     } finally {
@@ -347,10 +487,15 @@ const ManageItems = () => {
   };
 
   const handleRefresh = useCallback(() => {
-    loadItems();
+    loadItems(currentPage);
+  }, [currentPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  // Filter items based on search
+  // Filter items based on search (client-side filtering)
   const filteredItems = useMemo(() => {
     if (!searchQuery) return items;
 
@@ -366,14 +511,14 @@ const ManageItems = () => {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const totalItems = items.length;
+    const totalItems = paginationInfo.totalItems || items.length;
     const activeItems = items.filter((item) => !item.Is_disabled).length;
     const totalValue = items
       .filter((item) => !item.Is_disabled)
       .reduce((sum, item) => sum + item.price, 0);
 
     return { totalItems, activeItems, totalValue };
-  }, [items]);
+  }, [items, paginationInfo]);
 
   const handleInputChange = (
     field: keyof FormData,
@@ -437,7 +582,8 @@ const ManageItems = () => {
         );
       } else {
         response = await createItem(payload);
-        setItems((prev) => [response, ...prev]);
+        // Refresh the current page to show the new item
+        await loadItems(currentPage);
       }
 
       setSuccess(true);
@@ -912,36 +1058,47 @@ const ManageItems = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredItems.length > 0 ? (
-                  filteredItems.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onRestore={handleRestore}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-full empty-state">
-                    <div className="text-muted-foreground text-5xl mb-4">
-                      📦
+              <>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredItems.length > 0 ? (
+                    filteredItems.map((item) => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onRestore={handleRestore}
+                      />
+                    ))
+                  ) : (
+                    <div className="col-span-full empty-state">
+                      <div className="text-muted-foreground text-5xl mb-4">
+                        📦
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2">
+                        No Items Found
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {searchQuery
+                          ? "Try adjusting your search query"
+                          : "Start adding items to your inventory"}
+                      </p>
+                      <button onClick={handleAddNew} className="btn-primary">
+                        Add Your First Item
+                      </button>
                     </div>
-                    <h3 className="font-semibold text-foreground mb-2">
-                      No Items Found
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {searchQuery
-                        ? "Try adjusting your search query"
-                        : "Start adding items to your inventory"}
-                    </p>
-                    <button onClick={handleAddNew} className="btn-primary">
-                      Add Your First Item
-                    </button>
-                  </div>
+                  )}
+                </div>
+
+                {/* Pagination - Only show when not searching */}
+                {!searchQuery && filteredItems.length > 0 && (
+                  <Pagination
+                    pagination={paginationInfo}
+                    onPageChange={handlePageChange}
+                    loading={loading}
+                  />
                 )}
-              </div>
+              </>
             )}
           </>
         )}

@@ -505,3 +505,400 @@ All colors MUST be HSL.
     }
   }
 }
+
+/* ============================================================================
+   ADDITIONAL STYLES FOR REPORTS & MANAGE ITEMS PAGES
+   Add these to your index.css file after the existing styles
+   ============================================================================ */
+
+@layer utilities {
+  /* ============================================================================
+     STAT CARD VARIANTS - For Reports Page
+     ============================================================================ */
+
+  .stat-secondary {
+    @apply bg-gradient-to-br from-secondary/10 to-secondary/5;
+  }
+
+  .stat-accent {
+    @apply bg-gradient-to-br from-accent/10 to-accent/5;
+  }
+
+  .stat-info {
+    @apply bg-gradient-to-br from-info/10 to-info/5;
+  }
+
+  /* ============================================================================
+     BUTTON VARIANTS - Complete set for all pages
+     ============================================================================ */
+
+  .btn-outline {
+    @apply flex items-center justify-center gap-2 rounded-lg border-2 border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground;
+    @apply transition-all hover:border-primary hover:bg-primary/5 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-foreground;
+    @apply transition-all hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-destructive {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-white;
+    @apply transition-all hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-warning {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-warning px-4 py-2 text-sm font-medium text-warning-foreground;
+    @apply transition-all hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ============================================================================
+     ANIMATION UTILITIES
+     ============================================================================ */
+
+  /* Slide down animation for success/error messages */
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slideDown {
+    animation: slideDown 0.3s ease-out;
+  }
+
+  /* Pulse animation for loading states */
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Scale up animation for modals/cards */
+  @keyframes scaleUp {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scaleUp {
+    animation: scaleUp 0.2s ease-out;
+  }
+
+  /* ============================================================================
+     CARD STYLES - Enhanced for all pages
+     ============================================================================ */
+
+  .item-card {
+    @apply rounded-2xl border border-border bg-card shadow-sm;
+    @apply transition-all duration-300;
+    animation: fadeInCard 0.3s ease-out;
+  }
+
+  .item-card:hover {
+    @apply shadow-md scale-[1.02];
+    will-change: transform;
+  }
+
+  /* Quick action cards for reports page */
+  .quick-action-card {
+    @apply rounded-2xl border border-border p-6 text-left shadow-sm;
+    @apply transition-all duration-300;
+    @apply hover:shadow-md hover:scale-[1.02];
+  }
+
+  /* ============================================================================
+     FORM STYLES - Enhanced inputs for Manage Items page
+     ============================================================================ */
+
+  .form-input {
+    @apply w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground;
+    @apply placeholder:text-muted-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply transition-all;
+  }
+
+  .form-textarea {
+    @apply w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground;
+    @apply placeholder:text-muted-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply transition-all resize-none;
+  }
+
+  .form-select {
+    @apply w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground;
+    @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply transition-all;
+  }
+
+  .form-checkbox {
+    @apply h-5 w-5 rounded border-border text-primary;
+    @apply focus:ring-2 focus:ring-primary;
+  }
+
+  .form-label {
+    @apply mb-2 block text-sm font-semibold text-foreground;
+  }
+
+  /* ============================================================================
+     PAGINATION STYLES
+     ============================================================================ */
+
+  .pagination-container {
+    @apply flex flex-col sm:flex-row items-center justify-between gap-4;
+    @apply mt-6 px-4 py-3 bg-card rounded-lg border border-border;
+  }
+
+  .pagination-button {
+    @apply p-2 rounded-lg border border-border bg-background;
+    @apply hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-colors;
+  }
+
+  .pagination-page-number {
+    @apply min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm;
+    @apply border border-border bg-background hover:bg-accent;
+    @apply transition-colors;
+  }
+
+  .pagination-page-number[data-active="true"] {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .pagination-page-number:disabled {
+    @apply cursor-not-allowed;
+  }
+
+  /* ============================================================================
+     LOADING STATES
+     ============================================================================ */
+
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  .loading-overlay {
+    @apply absolute inset-0 bg-background/50 backdrop-blur-sm;
+    @apply flex items-center justify-center;
+    @apply z-50;
+  }
+
+  /* ============================================================================
+     CHART STYLES - For Reports Page
+     ============================================================================ */
+
+  .chart-container {
+    @apply rounded-2xl border border-border bg-card p-6 shadow-sm;
+  }
+
+  .chart-bar {
+    @apply w-full rounded-t-lg bg-gradient-to-t from-primary to-success;
+    @apply transition-all duration-500;
+  }
+
+  .chart-label {
+    @apply text-xs text-muted-foreground;
+  }
+
+  /* ============================================================================
+     STATUS BADGES
+     ============================================================================ */
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .badge-success {
+    @apply bg-success/10 text-success;
+  }
+
+  .badge-warning {
+    @apply bg-warning/10 text-warning;
+  }
+
+  .badge-destructive {
+    @apply bg-destructive/10 text-destructive;
+  }
+
+  .badge-secondary {
+    @apply bg-secondary/10 text-secondary;
+  }
+
+  .badge-muted {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* ============================================================================
+     HOVER EFFECTS - Optimized for performance
+     ============================================================================ */
+
+  .hover-scale {
+    @apply transition-transform duration-200;
+    will-change: transform;
+  }
+
+  .hover-scale:hover {
+    @apply scale-105;
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsla(var(--primary), 0.3);
+  }
+
+  /* ============================================================================
+     RESPONSIVE UTILITIES
+     ============================================================================ */
+
+  /* Hide on mobile */
+  @media (max-width: 640px) {
+    .hide-mobile {
+      @apply hidden;
+    }
+  }
+
+  /* Show only on mobile */
+  @media (min-width: 641px) {
+    .show-mobile {
+      @apply hidden;
+    }
+  }
+
+  /* ============================================================================
+     DARK MODE SPECIFIC ADJUSTMENTS
+     ============================================================================ */
+
+  .dark .form-input,
+  .dark .form-textarea,
+  .dark .form-select {
+    @apply border-border/50;
+  }
+
+  .dark .chart-bar {
+    @apply from-primary/80 to-success/80;
+  }
+
+  .dark .quick-action-card:hover {
+    @apply bg-card/80;
+  }
+
+  /* ============================================================================
+     PRINT STYLES
+     ============================================================================ */
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+
+    .print-full-width {
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    /* Remove shadows and transitions for print */
+    * {
+      box-shadow: none !important;
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* ============================================================================
+     ACCESSIBILITY IMPROVEMENTS
+     ============================================================================ */
+
+  /* Screen reader only content */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Focus visible improvements */
+  .focus-ring {
+    @apply focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  /* ============================================================================
+     PERFORMANCE OPTIMIZATIONS
+     ============================================================================ */
+
+  /* GPU acceleration for smooth animations */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Contain layout for better performance */
+  .contain-layout {
+    contain: layout style paint;
+  }
+
+  /* ============================================================================
+     REDUCE MOTION SUPPORT
+     ============================================================================ */
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-slideDown,
+    .animate-scaleUp,
+    .item-card,
+    .hover-scale,
+    .chart-bar {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .hover-scale:hover {
+      transform: none;
+    }
+  }
+
+  /* ============================================================================
+     UTILITY SPACING
+     ============================================================================ */
+
+  .section-spacing {
+    @apply py-6 md:py-8 lg:py-12;
+  }
+
+  .card-spacing {
+    @apply p-4 md:p-6;
+  }
+
+  .grid-gap {
+    @apply gap-4 md:gap-6;
+  }
+}

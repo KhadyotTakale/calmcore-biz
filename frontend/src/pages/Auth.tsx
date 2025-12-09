@@ -235,20 +235,15 @@ const Auth = () => {
                       <SignIn
                         routing="path"
                         path="/auth"
-                        signUpUrl="/auth"
                         afterSignInUrl="/home"
                         appearance={clerkAppearance}
-                        signUpForceRedirectUrl="/auth"
-                        forceRedirectUrl="/home"
                       />
                     ) : (
                       <SignUp
                         routing="path"
                         path="/auth"
-                        signInUrl="/auth"
                         afterSignUpUrl="/home"
                         appearance={clerkAppearance}
-                        forceRedirectUrl="/home"
                       />
                     )}
                   </Suspense>

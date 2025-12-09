@@ -1,17 +1,14 @@
 import { memo } from "react";
-import {
-  Receipt,
-  FileText,
-  BookOpen,
-  TrendingUp,
-  Plus,
-  FileCheck,
-} from "lucide-react";
+import { FileText, BookOpen, TrendingUp, FileCheck } from "lucide-react";
 import { QuickLinkCard } from "@/components/QuickLinkCard";
 import { ActionCard } from "@/components/ActionCard";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { RecentTransactions } from "@/components/estimate/RecentTransactions";
 
-// Memoized Quick Actions Section
+// ============================================================================
+// MEMOIZED SECTIONS
+// ============================================================================
+
 const QuickActionsSection = memo(() => (
   <section>
     <h2 className="mb-4 font-heading text-lg font-semibold text-foreground text-center">
@@ -36,7 +33,6 @@ const QuickActionsSection = memo(() => (
 
 QuickActionsSection.displayName = "QuickActionsSection";
 
-// Memoized Document Actions Section
 const DocumentActionsSection = memo(() => (
   <section>
     <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
@@ -63,26 +59,10 @@ const DocumentActionsSection = memo(() => (
 
 DocumentActionsSection.displayName = "DocumentActionsSection";
 
-// Memoized Recent Activity Section
-const RecentActivitySection = memo(() => (
-  <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-    <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-      Recent Activity
-    </h2>
-    <div className="flex flex-col items-center gap-3 py-8 text-center">
-      <div className="rounded-full bg-muted p-4">
-        <Receipt className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Your recent transactions will appear here
-      </p>
-    </div>
-  </section>
-));
+// ============================================================================
+// MAIN HOME COMPONENT
+// ============================================================================
 
-RecentActivitySection.displayName = "RecentActivitySection";
-
-// Main Home Component - Fully Optimized
 const Home = memo(() => {
   return (
     <div className="min-h-screen pb-28">
@@ -90,7 +70,8 @@ const Home = memo(() => {
         <DashboardHeader />
         <QuickActionsSection />
         <DocumentActionsSection />
-        <RecentActivitySection />
+        {/* ✅ Reusable Recent Transactions Component */}
+        <RecentTransactions limit={5} showTitle={true} />
       </div>
     </div>
   );

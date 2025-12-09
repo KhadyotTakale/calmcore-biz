@@ -543,6 +543,12 @@ async function performFetch<T>(
 // ============================================================================
 // CUSTOMER INITIALIZATION
 // ============================================================================
+// ============================================================================
+// CUSTOMER INITIALIZATION - FIXED VERSION
+// ============================================================================
+// ============================================================================
+// CUSTOMER INITIALIZATION - FIXED VERSION
+// ============================================================================
 export async function initializeCustomer(
   clerkUserId: string,
   email: string,
@@ -551,6 +557,7 @@ export async function initializeCustomer(
   try {
     authManager.setClerkUserId(clerkUserId);
 
+    // Step 1: Get temp auth token
     const authMeResponse = await fetch(`${BASE_URL}/auth/me`, {
       headers: BASE_HEADERS,
     });
@@ -572,35 +579,52 @@ export async function initializeCustomer(
       Authorization: `Bearer ${tempAuthToken}`,
     };
 
-    const postResponse = await fetch(`${BASE_URL}/customer`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ email, Full_name: fullName }),
-    });
-
-    if (!postResponse.ok) {
-      throw new Error(`POST /customer failed: ${postResponse.status}`);
-    }
-
+    // Step 2: Try to GET existing customer
     const getResponse = await fetch(`${BASE_URL}/customer`, {
       headers,
     });
 
-    if (!getResponse.ok) {
-      throw new Error(`GET /customer failed: ${getResponse.status}`);
-    }
-
-    const data = await getResponse.json();
-
-    const hasOwnShop = !!(data.authToken && data.authToken.trim() !== "");
-
-    if (hasOwnShop) {
-      authManager.setCustomerAuthToken(data.authToken);
-
-      if (data.customer?._shops?.id) {
-        localStorage.setItem("shopId", data.customer._shops.id);
+    // ✅ CASE 1: Customer exists - mark them as online, then check if they have a shop
+    if (getResponse.ok) {
+      // POST /customer to mark user as online in Xano
+      try {
+        await fetch(`${BASE_URL}/customer`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ email, Full_name: fullName }),
+        });
+      } catch (onlineError) {
+        // Don't throw - continue with login even if this fails
       }
-    } else {
+
+      // Re-fetch customer data after marking online
+      const refreshedGetResponse = await fetch(`${BASE_URL}/customer`, {
+        headers,
+      });
+
+      if (!refreshedGetResponse.ok) {
+        throw new Error(
+          `Failed to refresh customer after marking online: ${refreshedGetResponse.status}`
+        );
+      }
+
+      const data = await refreshedGetResponse.json();
+
+      const hasOwnShop = !!(data.authToken && data.authToken.trim() !== "");
+
+      // Sub-case 1A: Customer has shop - just log them in
+      if (hasOwnShop) {
+        authManager.setCustomerAuthToken(data.authToken);
+        if (data.customer?._shops?.id) {
+          localStorage.setItem("shopId", data.customer._shops.id);
+        }
+
+        return {
+          ...data,
+          hasOwnShop: true,
+        };
+      }
+
       const shopSlug = fullName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -619,13 +643,14 @@ export async function initializeCustomer(
         const createdShop = await createShop(shopPayload);
         localStorage.setItem("shopId", createdShop.id);
 
+        // Refresh customer data to get new auth token
         const refreshedResponse = await fetch(`${BASE_URL}/customer`, {
           headers,
         });
 
         if (!refreshedResponse.ok) {
           throw new Error(
-            `Failed to refresh customer data: ${refreshedResponse.status}`
+            `Failed to refresh customer: ${refreshedResponse.status}`
           );
         }
 
@@ -637,8 +662,8 @@ export async function initializeCustomer(
           hasOwnShop: true,
         };
       } catch (shopError) {
-        authManager.setCustomerAuthToken(tempAuthToken);
-
+        console.error("Failed to create shop:", shopError);
+        // If shop creation fails, return customer without shop
         return {
           ...data,
           hasOwnShop: false,
@@ -646,11 +671,86 @@ export async function initializeCustomer(
       }
     }
 
-    return {
-      ...data,
-      hasOwnShop,
-    };
+    // ✅ CASE 2: Customer doesn't exist (404/401) - CREATE them automatically
+    if (getResponse.status === 404 || getResponse.status === 401) {
+      // POST /customer creates the customer AND marks them as online
+      const createResponse = await fetch(`${BASE_URL}/customer`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ email, Full_name: fullName }),
+      });
+
+      if (!createResponse.ok) {
+        throw new Error(`Failed to create customer: ${createResponse.status}`);
+      }
+
+      // Get the newly created customer (they're already marked as online)
+      const newCustomerResponse = await fetch(`${BASE_URL}/customer`, {
+        headers,
+      });
+
+      if (!newCustomerResponse.ok) {
+        throw new Error(
+          `Failed to fetch new customer: ${newCustomerResponse.status}`
+        );
+      }
+
+      const newCustomerData = await newCustomerResponse.json();
+
+      // Create shop for new user
+      const shopSlug = fullName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      const shopPayload: CreateShopRequest = {
+        name: fullName,
+        description: `${fullName}'s Business`,
+        logo: "",
+        custom_domain: shopSlug,
+        Is_visible: 1,
+        slug: shopSlug,
+      };
+
+      try {
+        const createdShop = await createShop(shopPayload);
+        localStorage.setItem("shopId", createdShop.id);
+
+        // Refresh customer data to get new auth token
+        const refreshedResponse = await fetch(`${BASE_URL}/customer`, {
+          headers,
+        });
+
+        if (!refreshedResponse.ok) {
+          throw new Error(
+            `Failed to refresh customer: ${refreshedResponse.status}`
+          );
+        }
+
+        const refreshedData = await refreshedResponse.json();
+        authManager.setCustomerAuthToken(refreshedData.authToken);
+
+        return {
+          ...refreshedData,
+          hasOwnShop: true,
+        };
+      } catch (shopError) {
+        console.error("Failed to create shop:", shopError);
+        // Even if shop creation fails, return the customer data
+        authManager.setCustomerAuthToken(tempAuthToken);
+        return {
+          ...newCustomerData,
+          hasOwnShop: false,
+        };
+      }
+    }
+
+    // ✅ CASE 3: Other errors
+    throw new Error(
+      `Unexpected response from GET /customer: ${getResponse.status}`
+    );
   } catch (error) {
+    console.error("initializeCustomer error:", error);
     throw error;
   }
 }
