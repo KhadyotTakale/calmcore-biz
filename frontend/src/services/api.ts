@@ -567,7 +567,8 @@ async function performFetch<T>(
 export async function initializeCustomer(
   clerkUserId: string,
   email: string,
-  fullName: string
+  fullName: string,
+  isSignUp: boolean = false
 ): Promise<{ customer: Customer; authToken: string; hasOwnShop: boolean }> {
   try {
     authManager.setClerkUserId(clerkUserId);
@@ -659,10 +660,9 @@ export async function initializeCustomer(
       };
 
       try {
-        // Create shop using temp token headers
-        // Note: We cannot use api.createShop helper here because it relies on authManager token
-        // which is not set yet. We must use raw fetch with temp headers.
-        const createShopResponse = await fetch(`${BASE_URL}/shops`, {
+        // FIX: Use ITEMS_BOOKINGS_URL as shops endpoint is on that service
+        // We cannot use api.createShop helper here because it relies on authManager token
+        const createShopResponse = await fetch(`${ITEMS_BOOKINGS_URL}/shops`, {
           method: "POST",
           headers,
           body: JSON.stringify(shopPayload),
@@ -699,8 +699,15 @@ export async function initializeCustomer(
       }
     }
 
-    // ✅ CASE 2: Customer doesn't exist (404/401) - New User Flow
+    // ✅ CASE 2: Customer doesn't exist (404/401)
     if (getResponse.status === 404 || getResponse.status === 401) {
+
+      // STRICT CHECK: If this is NOT a sign-up attempt, block it.
+      if (!isSignUp) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      // New User Flow (Sign Up Only)
       // 1. Create Customer
       const createResponse = await fetch(`${BASE_URL}/customer`, {
         method: "POST",
@@ -728,7 +735,8 @@ export async function initializeCustomer(
       };
 
       try {
-        const createShopResponse = await fetch(`${BASE_URL}/shops`, {
+        // FIX: Use ITEMS_BOOKINGS_URL as shops endpoint is on that service
+        const createShopResponse = await fetch(`${ITEMS_BOOKINGS_URL}/shops`, {
           method: "POST",
           headers,
           body: JSON.stringify(shopPayload),

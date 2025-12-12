@@ -42,11 +42,16 @@ export const useAuthInitialization = () => {
       const existingToken = authManager.getCustomerAuthToken();
       const shopId = localStorage.getItem("shopId");
 
+      // Determine if this is likely a sign-up attempt based on current path or state
+      // We check for 'action=signup' which is set by the Clerk SignUp component's afterSignUpUrl
+      const isSignUpAttempt = location.search.includes("action=signup");
+
       try {
         const data = await initializeCustomer(
           user.id,
           user.primaryEmailAddress?.emailAddress || "",
-          user.fullName || ""
+          user.fullName || "",
+          isSignUpAttempt // Pass true only if we are in the Sign Up flow
         );
 
         if (data.hasOwnShop) {
@@ -62,11 +67,20 @@ export const useAuthInitialization = () => {
         }
 
         hasInitializedRef.current = true;
-      } catch (error) {
+      } catch (error: any) {
         logger.error("[Auth] Init failed", error);
         authManager.clearToken();
         localStorage.removeItem("shopId");
         setHasOwnShop(null);
+
+        // Strict handling for User Not Found
+        if (error.message === "USER_NOT_FOUND") {
+          // Stop infinite loop!
+          // Redirect to auth page with a query param or state to show "Sign Up" mode
+          // We use window.location to force a full clean state if needed, or navigate
+          navigate("/auth?mode=signup", { replace: true });
+          return;
+        }
       } finally {
         isInitializingRef.current = false;
         setIsInitializing(false);

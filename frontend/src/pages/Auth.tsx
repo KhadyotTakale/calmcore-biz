@@ -1,4 +1,5 @@
 import React, { memo, Suspense, lazy } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FileText, TrendingUp, Shield, Zap } from "lucide-react";
 
 // Lazy load Clerk components (saves ~100KB on initial load)
@@ -208,8 +209,24 @@ const clerkAppearance = {
 
 // Main Auth component
 const Auth = () => {
-  const [mode, setMode] = React.useState<"signin" | "signup">("signin");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialMode = (searchParams.get("mode") as "signin" | "signup") || "signin";
+  const [mode, setMode] = React.useState<"signin" | "signup">(initialMode);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+  // Sync state with URL if URL changes (e.g. from redirect)
+  React.useEffect(() => {
+    const urlMode = searchParams.get("mode") as "signin" | "signup";
+    if (urlMode && (urlMode === "signin" || urlMode === "signup")) {
+      setMode(urlMode);
+    }
+  }, [searchParams]);
+
+  // Update URL when mode changes manually
+  const handleModeChange = (newMode: "signin" | "signup") => {
+    setMode(newMode);
+    setSearchParams({ mode: newMode });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -226,7 +243,7 @@ const Auth = () => {
           <div className="fade-in-fast order-1 flex items-center justify-center lg:order-2">
             <div className="w-full max-w-md">
               <div className="rounded-2xl border border-border bg-card p-8 shadow-lg">
-                <ModeToggle mode={mode} onModeChange={setMode} />
+                <ModeToggle mode={mode} onModeChange={handleModeChange} />
 
                 {/* Lazy loaded Clerk components */}
                 <div className="clerk-auth-container">
@@ -242,7 +259,7 @@ const Auth = () => {
                       <SignUp
                         routing="path"
                         path="/auth"
-                        afterSignUpUrl="/home"
+                        afterSignUpUrl="/home?action=signup"
                         appearance={clerkAppearance}
                       />
                     )}
