@@ -108,14 +108,10 @@ export const usePDFGenerator = () => {
         );
 
         if (userConfirmed) {
-          const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${validUntil
-            ? `✅ Valid until: ${new Date(validUntil).toLocaleDateString(
-              "en-IN"
-            )}\n`
-            : ""
-            }💰 Total Amount: ₹${totalAmount.toFixed(
-              2
-            )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+          const message = `Hello ${customerName}! 👋\n\nThank you for your interest in QuoteBhai services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${validUntil
+            ? `This estimate is valid until ${validUntil}.`
+            : "Please review at your earliest convenience."
+            }\n\nFeel free to reach out for any questions!\n\nTeam QuoteBhai`;
 
           const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
             message

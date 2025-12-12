@@ -395,11 +395,11 @@ const GenerateInvoice = () => {
 
     const shareableLink = `${window.location.origin}/invoice-preview?id=${bookingSlug}`;
     const message = `Hello ${customerInfo.name
-      }! 👋\n\nThank you for your business with Mrudgandh. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
+      }! 👋\n\nThank you for your business with QuoteBhai. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
         invoiceDetails.dueDate
       ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
         2
-      )}\n\nPlease make payment by the due date.\n\nTeam Mrudgandh`;
+      )}\n\nPlease make payment by the due date.\n\nTeam QuoteBhai`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -451,10 +451,10 @@ const GenerateInvoice = () => {
                   <button
                     onClick={() => goToStep(step)}
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${currentStep === step
-                        ? "bg-secondary text-secondary-foreground"
-                        : currentStep > step
-                          ? "bg-secondary/20 text-secondary"
-                          : "bg-muted text-muted-foreground"
+                      ? "bg-secondary text-secondary-foreground"
+                      : currentStep > step
+                        ? "bg-secondary/20 text-secondary"
+                        : "bg-muted text-muted-foreground"
                       }`}
                   >
                     {step}

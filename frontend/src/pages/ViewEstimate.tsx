@@ -108,72 +108,77 @@ const ViewEstimate = () => {
         >
           {/* Company Header */}
           <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6">
-            <h2 className="text-2xl font-bold mb-1">MRUDGANDH</h2>
-            <p className="text-sm opacity-90">
-              Kodre Farm, Vadgaon Khurd, Pune, MH 411068
-            </p>
-          </div>
-
-          {/* Customer Info */}
-          <div className="p-6 border-b border-border">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-              BILL TO:
-            </h3>
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">
-                {estimateData.customerInfo.name}
-              </p>
-              {estimateData.customerInfo.email && (
-                <p className="text-sm text-muted-foreground">
-                  {estimateData.customerInfo.email}
-                </p>
-              )}
-              {estimateData.customerInfo.phone && (
-                <p className="text-sm text-muted-foreground">
-                  {estimateData.customerInfo.phone}
-                </p>
-              )}
-              {estimateData.customerInfo.address && (
-                <p className="text-sm text-muted-foreground">
-                  {estimateData.customerInfo.address}
-                </p>
-              )}
+            <h2 className="text-2xl font-bold mb-1">QUOTEBHAI</h2>
+            <div className="text-sm space-y-1">
+              <p>Kodre Farm, Vadgaon Khurd,</p>
+              <p>Behind Rajyog Society, Pune, MH 411068</p>
+              <p>Email: support@quotebhai.com</p>
+              <p>Phone: +91 9371711378 / +91 9850567505</p>
             </div>
-          </div>
+            {/* Divider */}
+            <div className="border-t-2 border-primary my-6"></div>
 
-          {/* Items Table */}
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            {/* View Title */}
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-primary mb-2">
+                  ESTIMATE
+                </h1>
+                <div className="text-sm text-gray-600">
+                  <p>
+                    <span className="font-semibold">Estimate #:</span>{" "}
+                    {estimateData.estimateNumber}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Date:</span>{" "}
+                    {new Date(estimateData.date).toLocaleDateString(
+                      "en-IN"
+                    )}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Valid Until:</span>{" "}
+                    {new Date(estimateData.validUntil).toLocaleDateString("en-IN")}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Info */}
+            <div className="bg-gray-50 p-4 rounded-lg mb-8">
+              <h3 className="text-sm font-bold text-primary mb-2 uppercase">
+                Bill To:
+              </h3>
+              <div className="text-sm">
+                <p className="font-semibold text-gray-900">
+                  {estimateData.customerInfo.name || "N/A"}
+                </p>
+                {/* We don't have customer address in the simple view yet, but could add if needed */}
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div className="mb-8">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b-2 border-border">
-                    <th className="text-left py-3 text-sm font-semibold text-muted-foreground">
-                      DESCRIPTION
-                    </th>
-                    <th className="text-center py-3 text-sm font-semibold text-muted-foreground">
-                      QTY
-                    </th>
-                    <th className="text-right py-3 text-sm font-semibold text-muted-foreground">
-                      RATE
-                    </th>
-                    <th className="text-right py-3 text-sm font-semibold text-muted-foreground">
-                      AMOUNT
-                    </th>
+                  <tr className="bg-primary text-white">
+                    <th className="p-3 text-left">DESCRIPTION</th>
+                    <th className="p-3 text-center w-20">QTY</th>
+                    <th className="p-3 text-right w-24">RATE</th>
+                    <th className="p-3 text-right w-24">AMOUNT</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {estimateData.items.map((item, index) => (
-                    <tr key={index} className="border-b border-border">
-                      <td className="py-3 text-foreground">
-                        {item.description}
-                      </td>
-                      <td className="py-3 text-center text-muted-foreground">
-                        {item.quantity}
-                      </td>
-                      <td className="py-3 text-right text-muted-foreground">
+                    <tr
+                      key={index}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="p-3">{item.description}</td>
+                      <td className="p-3 text-center">{item.quantity}</td>
+                      <td className="p-3 text-right">
                         ₹{item.rate.toFixed(2)}
                       </td>
-                      <td className="py-3 text-right font-semibold text-foreground">
+                      <td className="p-3 text-right font-medium">
                         ₹{item.amount.toFixed(2)}
                       </td>
                     </tr>
@@ -183,55 +188,67 @@ const ViewEstimate = () => {
             </div>
 
             {/* Totals */}
-            <div className="mt-6 ml-auto w-full max-w-sm space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-medium">
-                  ₹{estimateData.totals.subtotal.toFixed(2)}
-                </span>
-              </div>
-              {estimateData.discount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Discount ({estimateData.discount}%):
-                  </span>
-                  <span className="font-medium text-destructive">
-                    -₹{estimateData.totals.discountAmount.toFixed(2)}
+            <div className="flex justify-end mb-8">
+              <div className="w-64 space-y-2 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal:</span>
+                  <span className="font-semibold">
+                    ₹{estimateData.totals.subtotal.toFixed(2)}
                   </span>
                 </div>
-              )}
-              {estimateData.tax > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Tax ({estimateData.tax}%):
-                  </span>
-                  <span className="font-medium">
-                    +₹{estimateData.totals.taxAmount.toFixed(2)}
-                  </span>
+                {estimateData.discount > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Discount ({estimateData.discount}%):</span>
+                    <span className="font-semibold">
+                      -₹{estimateData.totals.discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {estimateData.tax > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tax ({estimateData.tax}%):</span>
+                    <span className="font-semibold">
+                      +₹{estimateData.totals.taxAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t-2 border-primary pt-2 text-base font-bold text-primary">
+                  <span>TOTAL:</span>
+                  <span>₹{estimateData.totals.total.toFixed(2)}</span>
                 </div>
-              )}
-              <div className="flex justify-between pt-3 border-t-2 border-primary">
-                <span className="font-bold text-lg text-foreground">
-                  TOTAL:
-                </span>
-                <span className="font-bold text-lg text-primary">
-                  ₹{estimateData.totals.total.toFixed(2)}
-                </span>
               </div>
             </div>
-          </div>
 
-          {/* Notes */}
-          {estimateData.notes && (
-            <div className="p-6 bg-muted/30 border-t border-border">
-              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-                NOTES:
+            {/* Notes */}
+            {estimateData.notes && (
+              <div className="mb-6 bg-gray-50 p-4 border-l-4 border-primary rounded-r">
+                <h3 className="text-xs font-bold text-primary mb-1 uppercase">
+                  Notes:
+                </h3>
+                <p className="text-xs text-gray-600 whitespace-pre-line">
+                  {estimateData.notes}
+                </p>
+              </div>
+            )}
+
+            {/* Terms */}
+            <div className="mb-8 bg-yellow-50 p-4 border border-yellow-200 rounded">
+              <h3 className="text-xs font-bold text-yellow-800 mb-1 uppercase">
+                Terms & Conditions:
               </h3>
-              <p className="text-sm text-foreground whitespace-pre-line">
-                {estimateData.notes}
+              <p className="text-xs text-yellow-800">
+                This estimate is valid until{" "}
+                {new Date(estimateData.validUntil).toLocaleDateString("en-IN")}.
+                Payment terms apply.
               </p>
             </div>
-          )}
+
+            {/* Footer */}
+            <div className="text-center pt-6 border-t border-gray-200 text-xs text-gray-500">
+              <p className="mb-1">Thank you for your business!</p>
+              <p>Copyright © 2025 QuoteBhai | Powered by Elegant Enterprises</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Download Button */}

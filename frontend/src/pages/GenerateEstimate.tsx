@@ -401,11 +401,9 @@ const GenerateEstimate = () => {
 
     const shareableLink = `${window.location.origin}/estimate-preview?id=${bookingSlug}`;
     const message = `Hello ${customerInfo.name
-      }! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
+      }! 👋\n\nThank you for your interest in QuoteBhai services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
         estimateDetails.validUntil
-      ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
-        2
-      )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+      ).toLocaleDateString("en-IN")}\n\nFeel free to reach out for any questions!\n\nTeam QuoteBhai`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -457,10 +455,10 @@ const GenerateEstimate = () => {
                   <button
                     onClick={() => goToStep(step)}
                     className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${currentStep === step
-                        ? "bg-primary text-primary-foreground"
-                        : currentStep > step
-                          ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
+                      ? "bg-primary text-primary-foreground"
+                      : currentStep > step
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted text-muted-foreground"
                       }`}
                   >
                     {step}
