@@ -124,6 +124,12 @@ const Settings = () => {
           description: "Add and manage inventory items",
           onClick: () => navigate("/manage-items"),
         },
+        {
+          icon: User,
+          label: "Manage Customers",
+          description: "View and manage your customers",
+          onClick: () => navigate("/manage-customers"),
+        },
       ],
     },
     {

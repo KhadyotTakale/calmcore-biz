@@ -629,7 +629,8 @@ All colors MUST be HSL.
      FORM STYLES - Enhanced inputs for Manage Items page
      ============================================================================ */
 
-  .form-input {
+  .form-input,
+  .input-field {
     @apply w-full rounded-lg border-2 border-border bg-background px-4 py-3 text-foreground;
     @apply placeholder:text-muted-foreground;
     @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;

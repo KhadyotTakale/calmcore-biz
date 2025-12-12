@@ -51,6 +51,7 @@ const InvoicePreview = lazy(() => import("./pages/InvoicePreview"));
 const CompanyInfo = lazy(() => import("./pages/CompanyInfo"));
 const Profile = lazy(() => import("./pages/Profile"));
 const ManageItems = lazy(() => import("./pages/ManageItems"));
+const ManageCustomers = lazy(() => import("./pages/ManageCustomers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // ============================================================================
@@ -284,6 +285,14 @@ const AppRoutes = memo(() => {
           element={
             <ProtectedRoute>
               <ManageItems />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manage-customers"
+          element={
+            <ProtectedRoute>
+              <ManageCustomers />
             </ProtectedRoute>
           }
         />

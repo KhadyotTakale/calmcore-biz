@@ -1110,6 +1110,29 @@ export async function createLead(leadPayload: any): Promise<any> {
   );
 }
 
+export async function updateLead(leadId: number, leadPayload: any): Promise<any> {
+  return apiFetch(
+    `/leads/${leadId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ payload: leadPayload }),
+    },
+    false,
+    true
+  );
+}
+
+export async function deleteLead(leadId: number): Promise<any> {
+  return apiFetch(
+    `/leads/${leadId}`,
+    {
+      method: "DELETE",
+    },
+    false,
+    true
+  );
+}
+
 export async function getBookingItems(bookingId: number): Promise<any> {
   return apiFetch(`/booking/${bookingId}/items`, {}, false, true);
 }
