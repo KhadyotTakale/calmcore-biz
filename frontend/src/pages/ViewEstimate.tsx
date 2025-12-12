@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Download, Loader2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { loadCompleteEstimate } from "@/services/api";
 import EstimatePDFGenerator from "@/components/estimate/EstimatePDFGenerator";
+import { logger } from "@/services/logger";
 
 const ViewEstimate = () => {
   const { bookingId } = useParams();
@@ -11,15 +12,11 @@ const ViewEstimate = () => {
   const [error, setError] = useState(null);
   const [estimateData, setEstimateData] = useState(null);
 
-  useEffect(() => {
-    loadEstimate();
-  }, [bookingId]);
-
-  const loadEstimate = async () => {
+  const loadEstimate = useCallback(async () => {
     try {
       setLoading(true);
       const { booking, metadata } = await loadCompleteEstimate(
-        parseInt(bookingId)
+        parseInt(bookingId!)
       );
 
       if (!metadata) {
@@ -28,13 +25,17 @@ const ViewEstimate = () => {
       }
 
       setEstimateData(metadata);
-    } catch (err) {
-      console.error("Error loading estimate:", err);
+    } catch (err: any) {
+      logger.error("Error loading estimate", err);
       setError(err.message || "Failed to load estimate");
     } finally {
       setLoading(false);
     }
-  };
+  }, [bookingId]);
+
+  useEffect(() => {
+    loadEstimate();
+  }, [loadEstimate]);
 
   const handleDownload = async () => {
     if (!estimateData) return;

@@ -79,7 +79,6 @@ const CustomerSelector = ({
       setLeads(allLeads);
       setFilteredLeads(allLeads);
     } catch (err) {
-      console.error("Failed to load leads:", err);
       setError("Failed to load customers. Please try again.");
     } finally {
       setIsLoading(false);

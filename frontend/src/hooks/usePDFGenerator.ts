@@ -1,5 +1,8 @@
 import { useState, useCallback } from "react";
-import html2pdf from "html2pdf.js";
+import { logger } from "@/services/logger";
+
+// Lazy load html2pdf to reduce initial bundle size
+type Html2PdfType = typeof import("html2pdf.js").default;
 
 interface PDFGeneratorOptions {
   bookingSlug: string;
@@ -66,7 +69,7 @@ export const usePDFGenerator = () => {
         const opt = {
           margin: 0,
           filename: pdfFilename,
-          image: { type: "jpeg", quality: 0.98 },
+          image: { type: "jpeg" as const, quality: 0.98 },
           html2canvas: {
             scale: 2,
             useCORS: true,
@@ -75,9 +78,12 @@ export const usePDFGenerator = () => {
           jsPDF: {
             unit: "mm",
             format: "a4",
-            orientation: "portrait",
+            orientation: "portrait" as const,
           },
         };
+
+        // Dynamically import html2pdf only when needed (saves ~220KB on initial load)
+        const { default: html2pdf } = await import("html2pdf.js");
 
         // Generate and download PDF
         await html2pdf().set(opt).from(iframeDoc.body).save();
@@ -93,24 +99,23 @@ export const usePDFGenerator = () => {
         // Step 7: Show instructions and open WhatsApp
         const userConfirmed = confirm(
           `✅ PDF Downloaded: ${pdfFilename}\n\n` +
-            `📱 Next Steps:\n` +
-            `1. WhatsApp will open in a new tab\n` +
-            `2. Click the 📎 (attach) button in WhatsApp\n` +
-            `3. Select "Document" and attach the downloaded PDF\n` +
-            `4. Send the message!\n\n` +
-            `Click OK to open WhatsApp`
+          `📱 Next Steps:\n` +
+          `1. WhatsApp will open in a new tab\n` +
+          `2. Click the 📎 (attach) button in WhatsApp\n` +
+          `3. Select "Document" and attach the downloaded PDF\n` +
+          `4. Send the message!\n\n` +
+          `Click OK to open WhatsApp`
         );
 
         if (userConfirmed) {
-          const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${
-            validUntil
-              ? `✅ Valid until: ${new Date(validUntil).toLocaleDateString(
-                  "en-IN"
-                )}\n`
-              : ""
-          }💰 Total Amount: ₹${totalAmount.toFixed(
-            2
-          )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+          const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${validUntil
+            ? `✅ Valid until: ${new Date(validUntil).toLocaleDateString(
+              "en-IN"
+            )}\n`
+            : ""
+            }💰 Total Amount: ₹${totalAmount.toFixed(
+              2
+            )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
 
           const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
             message
@@ -119,7 +124,7 @@ export const usePDFGenerator = () => {
           window.open(whatsappUrl, "_blank");
         }
       } catch (error) {
-        console.error("Error generating PDF:", error);
+        logger.error("Error generating PDF", error);
         setIsGenerating(false);
         alert(
           "❌ Failed to generate PDF. Please try again or use the Download button."

@@ -18,6 +18,7 @@ import {
   generateFinancialYearEstimateNumber,
   authManager,
 } from "@/services/api";
+import { logger } from "@/services/logger";
 
 const GenerateInvoice = () => {
   const [customerInfo, setCustomerInfo] = useState({
@@ -82,7 +83,7 @@ const GenerateInvoice = () => {
         }));
         setInvoiceNumberLoading(false);
       } catch (error) {
-        console.error("Failed to generate invoice number:", error);
+        logger.error("Failed to generate invoice number", error);
         setInvoiceDetails((prev) => ({
           ...prev,
           invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
@@ -327,7 +328,7 @@ const GenerateInvoice = () => {
             });
           }
         } catch (itemError) {
-          console.error(`❌ Failed to process item ${i + 1}:`, itemError);
+          logger.error(`Failed to process item ${i + 1}`, itemError);
           itemErrors.push(`Item "${item.description}": ${itemError.message}`);
         }
       }
@@ -348,13 +349,13 @@ const GenerateInvoice = () => {
             last_name: customerData.name.split(" ").slice(1).join(" ") || "",
             addresses: customerData.address
               ? [
-                  {
-                    line1: customerData.address,
-                    region: customerData.state || "",
-                    country: "India",
-                    country_code: "IN",
-                  },
-                ]
+                {
+                  line1: customerData.address,
+                  region: customerData.state || "",
+                  country: "India",
+                  country_code: "IN",
+                },
+              ]
               : [],
             phone_numbers: customerData.phone
               ? [{ number: customerData.phone, type: "mobile" }]
@@ -375,7 +376,7 @@ const GenerateInvoice = () => {
         `✓ Invoice created successfully!\n\nInvoice #: ${invoiceDetails.invoiceNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
       );
     } catch (error) {
-      console.error("❌ Error creating invoice:", error);
+      logger.error("Error creating invoice", error);
       const errorMessage = error.message || "An unexpected error occurred";
       alert("Failed to create invoice: " + errorMessage);
       setValidationErrors([errorMessage]);
@@ -393,13 +394,12 @@ const GenerateInvoice = () => {
     if (!bookingSlug) return;
 
     const shareableLink = `${window.location.origin}/invoice-preview?id=${bookingSlug}`;
-    const message = `Hello ${
-      customerInfo.name
-    }! 👋\n\nThank you for your business with Mrudgandh. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
-      invoiceDetails.dueDate
-    ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
-      2
-    )}\n\nPlease make payment by the due date.\n\nTeam Mrudgandh`;
+    const message = `Hello ${customerInfo.name
+      }! 👋\n\nThank you for your business with Mrudgandh. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
+        invoiceDetails.dueDate
+      ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
+        2
+      )}\n\nPlease make payment by the due date.\n\nTeam Mrudgandh`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -450,13 +450,12 @@ const GenerateInvoice = () => {
                 <div className="flex flex-col items-center flex-1">
                   <button
                     onClick={() => goToStep(step)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                      currentStep === step
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${currentStep === step
                         ? "bg-secondary text-secondary-foreground"
                         : currentStep > step
-                        ? "bg-secondary/20 text-secondary"
-                        : "bg-muted text-muted-foreground"
-                    }`}
+                          ? "bg-secondary/20 text-secondary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
                   >
                     {step}
                   </button>
@@ -469,9 +468,8 @@ const GenerateInvoice = () => {
                 </div>
                 {step < 4 && (
                   <div
-                    className={`h-0.5 flex-1 mx-2 ${
-                      currentStep > step ? "bg-secondary" : "bg-muted"
-                    }`}
+                    className={`h-0.5 flex-1 mx-2 ${currentStep > step ? "bg-secondary" : "bg-muted"
+                      }`}
                   />
                 )}
               </div>
@@ -886,9 +884,8 @@ const GenerateInvoice = () => {
 
           {/* Summary Sidebar */}
           <div
-            className={`space-y-6 ${
-              currentStep === 4 ? "block" : "hidden lg:block"
-            }`}
+            className={`space-y-6 ${currentStep === 4 ? "block" : "hidden lg:block"
+              }`}
           >
             <motion.div
               initial={{ opacity: 0, x: 20 }}

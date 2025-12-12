@@ -7,6 +7,7 @@ import {
   loadEstimateFromStorage,
   deleteEstimateFromStorage,
 } from "@/services/api";
+import { logger } from "@/services/logger";
 
 const EstimatesList = () => {
   const navigate = useNavigate();
@@ -32,17 +33,17 @@ const EstimatesList = () => {
       );
 
       // Sort by date (newest first)
-      estimatesData.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      estimatesData.sort((a: any, b: any) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
 
       setEstimates(estimatesData.filter(Boolean));
     } catch (error) {
-      console.error("Error loading estimates:", error);
+      logger.error("Error loading estimates", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (estimateNumber) => {
+  const handleDelete = async (estimateNumber: string) => {
     if (!confirm("Are you sure you want to delete this estimate?")) return;
 
     try {
@@ -51,12 +52,12 @@ const EstimatesList = () => {
         estimates.filter((e) => e.estimateNumber !== estimateNumber)
       );
     } catch (error) {
-      console.error("Error deleting estimate:", error);
+      logger.error("Error deleting estimate", error);
       alert("Failed to delete estimate");
     }
   };
 
-  const handleView = (bookingId) => {
+  const handleView = (bookingId: string) => {
     navigate(`/estimate/${bookingId}`);
   };
 

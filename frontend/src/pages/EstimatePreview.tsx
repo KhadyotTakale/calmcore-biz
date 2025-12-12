@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
 import { getBookingBySlug, getBooking, getShopInfo } from "@/services/api";
 import { useNavigate } from "react-router-dom";
+import { logger } from "@/services/logger";
 
 // Number to words converter
 const numberToWords = (num) => {
@@ -111,7 +112,7 @@ const EstimatePreview = () => {
           shopData = shopInfoResponse.shops_settings;
           setShopInfo(shopData);
         } catch (shopErr) {
-          console.error("[EstimatePreview] Failed to load shop info:", shopErr);
+          logger.error("[EstimatePreview] Failed to load shop info", shopErr);
           // Continue without shop info - use defaults
         }
 
@@ -228,7 +229,7 @@ const EstimatePreview = () => {
 
         setLoading(false);
       } catch (err) {
-        console.error("Error loading estimate:", err);
+        logger.error("Error loading estimate", err);
         setError(err.message || "Failed to load estimate");
         setLoading(false);
       }

@@ -6,13 +6,16 @@
 // ✅ Lazy initialization for AuthManager (faster page loads)
 // ============================================================================
 
-// Base configuration
-const BASE_URL = import.meta.env.VITE_XANO_BASE_URL!;
-const ITEMS_BOOKINGS_URL = import.meta.env.VITE_XANO_ITEMS_BOOKINGS_URL!;
+import { env } from "@/config/env";
+import { logger } from "@/services/logger";
+
+// Base configuration from validated environment
+const BASE_URL = env.baseUrl;
+const ITEMS_BOOKINGS_URL = env.itemsBookingsUrl;
 
 const BASE_HEADERS = {
-  "X-Elegant-Domain": import.meta.env.VITE_ELEGANT_DOMAIN!,
-  "X-Elegant-Auth": import.meta.env.VITE_ELEGANT_AUTH!,
+  "X-Elegant-Domain": env.elegantDomain,
+  "X-Elegant-Auth": env.elegantAuth,
   "Content-Type": "application/json",
 } as const;
 
@@ -298,6 +301,18 @@ export interface CreateCustomerRequest {
 export interface CustomerResponse {
   customer: Customer;
   authToken: string;
+  _shops?: {
+    id: string;
+    created_at: number;
+    name: string;
+    description: string;
+    logo: string;
+    custom_domain: string;
+    Is_visible: boolean;
+    slug: string;
+    allow_affiliate: boolean;
+    testmode: boolean;
+  };
 }
 
 export interface Lead {
@@ -491,7 +506,7 @@ async function performFetch<T>(
     ) {
       throw new Error(
         `API endpoint ${endpoint} returned HTML instead of JSON. ` +
-          `Check if: 1) Backend is running, 2) Endpoint path is correct, 3) CORS is configured`
+        `Check if: 1) Backend is running, 2) Endpoint path is correct, 3) CORS is configured`
       );
     }
 
@@ -625,50 +640,12 @@ export async function initializeCustomer(
         };
       }
 
-      const shopSlug = fullName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-
-      const shopPayload: CreateShopRequest = {
-        name: fullName,
-        description: `${fullName}'s Business`,
-        logo: "",
-        custom_domain: shopSlug,
-        Is_visible: 1,
-        slug: shopSlug,
+      // Sub-case 1B: Customer has no shop - return hasOwnShop: false
+      // This will trigger redirect to /company-info for manual shop creation
+      return {
+        ...data,
+        hasOwnShop: false,
       };
-
-      try {
-        const createdShop = await createShop(shopPayload);
-        localStorage.setItem("shopId", createdShop.id);
-
-        // Refresh customer data to get new auth token
-        const refreshedResponse = await fetch(`${BASE_URL}/customer`, {
-          headers,
-        });
-
-        if (!refreshedResponse.ok) {
-          throw new Error(
-            `Failed to refresh customer: ${refreshedResponse.status}`
-          );
-        }
-
-        const refreshedData = await refreshedResponse.json();
-        authManager.setCustomerAuthToken(refreshedData.authToken);
-
-        return {
-          ...refreshedData,
-          hasOwnShop: true,
-        };
-      } catch (shopError) {
-        console.error("Failed to create shop:", shopError);
-        // If shop creation fails, return customer without shop
-        return {
-          ...data,
-          hasOwnShop: false,
-        };
-      }
     }
 
     // ✅ CASE 2: Customer doesn't exist (404/401) - CREATE them automatically
@@ -735,7 +712,7 @@ export async function initializeCustomer(
           hasOwnShop: true,
         };
       } catch (shopError) {
-        console.error("Failed to create shop:", shopError);
+        logger.error("Failed to create shop", shopError);
         // Even if shop creation fails, return the customer data
         authManager.setCustomerAuthToken(tempAuthToken);
         return {
@@ -750,7 +727,7 @@ export async function initializeCustomer(
       `Unexpected response from GET /customer: ${getResponse.status}`
     );
   } catch (error) {
-    console.error("initializeCustomer error:", error);
+    logger.error("initializeCustomer error", error);
     throw error;
   }
 }
@@ -1244,7 +1221,7 @@ export async function saveEstimateToStorage(
 ): Promise<void> {
   try {
     const key = `estimate:${estimateNumber}`;
-    await window.storage.set(key, JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
     throw error;
   }
@@ -1255,8 +1232,8 @@ export async function loadEstimateFromStorage(
 ): Promise<EstimateMetadata | null> {
   try {
     const key = `estimate:${estimateNumber}`;
-    const result = await window.storage.get(key);
-    return result ? JSON.parse(result.value) : null;
+    const result = localStorage.getItem(key);
+    return result ? JSON.parse(result) : null;
   } catch (error) {
     return null;
   }
@@ -1264,8 +1241,14 @@ export async function loadEstimateFromStorage(
 
 export async function listEstimatesFromStorage(): Promise<string[]> {
   try {
-    const result = await window.storage.list("estimate:");
-    return result?.keys || [];
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("estimate:")) {
+        keys.push(key);
+      }
+    }
+    return keys;
   } catch (error) {
     return [];
   }
@@ -1276,7 +1259,7 @@ export async function deleteEstimateFromStorage(
 ): Promise<void> {
   try {
     const key = `estimate:${estimateNumber}`;
-    await window.storage.delete(key);
+    localStorage.removeItem(key);
   } catch (error) {
     throw error;
   }

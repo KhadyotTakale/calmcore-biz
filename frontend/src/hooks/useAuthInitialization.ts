@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { authManager, initializeCustomer } from "@/services/api";
+import { logger } from "@/services/logger";
 
 /**
  * Custom hook to handle user authentication initialization
@@ -62,7 +63,7 @@ export const useAuthInitialization = () => {
 
         hasInitializedRef.current = true;
       } catch (error) {
-        console.error("[Auth] ❌ Init failed:", error);
+        logger.error("[Auth] Init failed", error);
         authManager.clearToken();
         localStorage.removeItem("shopId");
         setHasOwnShop(null);
@@ -73,7 +74,7 @@ export const useAuthInitialization = () => {
     };
 
     initializeAuth();
-  }, [user?.id, isLoaded]);
+  }, [user?.id, isLoaded, user]);
 
   // Handle redirects based on auth state
   useEffect(() => {

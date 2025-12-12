@@ -19,6 +19,7 @@ import {
   getCurrentShop,
   updateShop,
 } from "@/services/api";
+import { logger } from "@/services/logger";
 
 const CompanyInfo = () => {
   const [loading, setLoading] = useState(false);
@@ -80,13 +81,13 @@ const CompanyInfo = () => {
           setHasShop(false);
           localStorage.removeItem("shopId");
         } else {
-          console.error("[CompanyInfo] ❌ Error fetching shop:", err);
+          logger.error("[CompanyInfo] Error fetching shop", err);
           setError("Failed to load shop details. Please try again.");
           setHasShop(false);
         }
       }
     } catch (err: any) {
-      console.error("[CompanyInfo] ❌ Unexpected error:", err);
+      logger.error("[CompanyInfo] Unexpected error", err);
       setError("An unexpected error occurred");
       setHasShop(false);
     } finally {
@@ -94,14 +95,14 @@ const CompanyInfo = () => {
     }
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  const handleLogoUpload = (e) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -111,17 +112,17 @@ const CompanyInfo = () => {
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result);
+        setLogoPreview(reader.result as string);
         setFormData((prev) => ({
           ...prev,
-          logo: reader.result,
+          logo: reader.result as string,
         }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const generateSlug = (name) => {
+  const generateSlug = (name: string) => {
     return name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -180,7 +181,7 @@ const CompanyInfo = () => {
         window.location.reload();
       }, 2000);
     } catch (err) {
-      console.error("[CompanyInfo] ❌ Shop creation error:", err);
+      logger.error("[CompanyInfo] Shop creation error", err);
       setError(err.message || "Failed to create shop. Please try again.");
     } finally {
       setSaving(false);
@@ -221,7 +222,7 @@ const CompanyInfo = () => {
         setSuccess(false);
       }, 3000);
     } catch (err) {
-      console.error("[CompanyInfo] ❌ Shop update error:", err);
+      logger.error("[CompanyInfo] Shop update error", err);
       setError(err.message || "Failed to update shop. Please try again.");
     } finally {
       setSaving(false);

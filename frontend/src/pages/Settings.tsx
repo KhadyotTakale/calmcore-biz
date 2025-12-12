@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { getShopInfo } from "@/services/api";
+import { logger } from "@/services/logger";
 
 // Lazy load Razorpay payment component
 const RazorpayPayment = lazy(
@@ -53,7 +54,7 @@ const Settings = () => {
       // Navigate to landing page or auth page
       navigate("/");
     } catch (error) {
-      console.error("Sign out error:", error);
+      logger.error("Sign out error", error);
       toast({
         title: "Sign out failed",
         description: "There was an error signing you out. Please try again.",
@@ -91,7 +92,7 @@ const Settings = () => {
           logo: shopInfo.shops_settings?.logo_url || "",
         });
       } catch (error) {
-        console.error("Failed to load company info:", error);
+        logger.error("Failed to load company info", error);
         // Keep fallback values already set in state
       } finally {
         setIsLoading(false);
@@ -304,9 +305,8 @@ const Settings = () => {
                         delay: 0.3 + sectionIndex * 0.1 + itemIndex * 0.05,
                       }}
                       onClick={item.toggle ? undefined : item.onClick}
-                      className={`flex w-full items-center gap-4 p-4 transition-colors hover:bg-muted/50 ${
-                        !item.toggle ? "cursor-pointer" : ""
-                      }`}
+                      className={`flex w-full items-center gap-4 p-4 transition-colors hover:bg-muted/50 ${!item.toggle ? "cursor-pointer" : ""
+                        }`}
                     >
                       <div className="rounded-xl bg-primary/10 p-3">
                         <Icon className="h-5 w-5 text-primary" />

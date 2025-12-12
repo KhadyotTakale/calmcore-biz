@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
 import { getBookingBySlug, getBooking, getShopInfo } from "@/services/api";
+import { logger } from "@/services/logger";
 
 // Number to words converter
 const numberToWords = (num) => {
@@ -198,9 +199,9 @@ const InvoicePreview = () => {
               savedInvoiceData.invoice_details?.invoiceNumber ||
               (savedInvoiceData.estimate_details?.estimateNumber
                 ? savedInvoiceData.estimate_details.estimateNumber.replace(
-                    "EST-",
-                    "INV-"
-                  )
+                  "EST-",
+                  "INV-"
+                )
                 : `INV-${booking.id}`),
             date:
               savedInvoiceData.estimate_details?.date ||
@@ -227,7 +228,7 @@ const InvoicePreview = () => {
 
         setLoading(false);
       } catch (err) {
-        console.error("Error loading invoice:", err);
+        logger.error("Error loading invoice", err);
         setError(err.message || "Failed to load invoice");
         setLoading(false);
       }

@@ -18,6 +18,7 @@ import {
   Image,
 } from "lucide-react";
 import { getShopInfo, updateShopInfo } from "@/services/api";
+import { logger } from "@/services/logger";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -86,11 +87,13 @@ const Profile = () => {
         }
       }
     } catch (err: any) {
-      console.error("[Profile] ❌ Failed to load shop info:", err);
+      logger.error("[Profile] Failed to load shop info", err);
 
       if (err.status !== 404) {
         setError("Failed to load profile. Please try again.");
       } else {
+        // Intentionally empty - 404 means no shop info yet, which is a valid state
+        // User can create info by filling the form and saving
       }
     } finally {
       setLoading(false);
@@ -197,7 +200,7 @@ const Profile = () => {
         setSuccess(false);
       }, 3000);
     } catch (err: any) {
-      console.error("[Profile] ❌ Save error:", err);
+      logger.error("[Profile] Save error", err);
       setError(err.message || "Failed to save profile. Please try again.");
     } finally {
       setSaving(false);

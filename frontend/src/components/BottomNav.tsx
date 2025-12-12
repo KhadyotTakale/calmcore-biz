@@ -43,7 +43,6 @@ export const BottomNav = () => {
       setMobileMenuOpen(false);
       navigate("/");
     } catch (error) {
-      console.error("Sign out error:", error);
       toast({
         title: "Sign out failed",
         description: "There was an error signing you out. Please try again.",

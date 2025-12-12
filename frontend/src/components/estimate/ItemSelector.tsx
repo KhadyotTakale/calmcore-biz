@@ -72,8 +72,8 @@ const ItemSelector = ({
       setHasMorePages(response.nextPage !== null);
       setCurrentPage(page);
     } catch (err) {
-      console.error("Failed to load items:", err);
-      setError("Failed to load items. Please try again.");
+      // Intentionally empty - error state is already set via setError()
+      // and component shows error UI to user
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);

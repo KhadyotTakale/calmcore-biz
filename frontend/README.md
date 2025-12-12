@@ -32,8 +32,59 @@ cd <YOUR_PROJECT_NAME>
 # Step 3: Install the necessary dependencies.
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Set up environment variables (REQUIRED)
+# Copy .env.example to .env
+cp .env.example .env
+
+# Then edit .env and fill in your actual values
+# You MUST configure these before the app will work
+
+# Step 5: Start the development server with auto-reloading and an instant preview.
 npm run dev
+```
+
+## Environment Setup
+
+### Required Environment Variables
+
+This application requires the following environment variables to be set before it will run:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_XANO_BASE_URL` | Base URL for Xano API | `https://your-instance.xano.io/api:base` |
+| `VITE_XANO_ITEMS_BOOKINGS_URL` | Items/Bookings API URL | `https://your-instance.xano.io/api:items` |
+| `VITE_ELEGANT_DOMAIN` | Your application domain | `your-domain.com` |
+| `VITE_ELEGANT_AUTH` | Authentication key | `your-auth-key` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk authentication key | `pk_test_xxx...` |
+
+### Setup Instructions
+
+1. **Copy the example file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` and fill in your values:**
+   ```bash
+   # Use your preferred editor
+   nano .env
+   # or
+   code .env
+   ```
+
+3. **Never commit `.env` to git** (it's already in `.gitignore`)
+
+### Troubleshooting
+
+**Error: "Missing required environment variables"**
+- Make sure you have created a `.env` file in the `frontend` directory
+- Verify all required variables are set and not empty
+- Restart the development server after changing `.env`
+
+**Error: "Failed to fetch" or API errors**
+- Check that your API URLs are correct and accessible
+- Verify your authentication keys are valid
+- Ensure CORS is configured on your backend
 ```
 
 **Edit a file directly in GitHub**

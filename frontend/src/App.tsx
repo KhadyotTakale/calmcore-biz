@@ -19,6 +19,8 @@ import {
 } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { DesktopNav } from "@/components/DesktopNav";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { env } from "@/config/env";
 
 // Custom Hooks
 import { useAuthInitialization } from "@/hooks/useAuthInitialization";
@@ -83,11 +85,7 @@ InitializingLoader.displayName = "InitializingLoader";
 
 const queryClient = createOptimizedQueryClient();
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key");
-}
+const PUBLISHABLE_KEY = env.clerkPublishableKey;
 
 // ============================================================================
 // AUTH CONTEXT - Lightweight state management
@@ -174,7 +172,7 @@ const AppRoutes = memo(() => {
       <Routes>
         {/* Public Routes - No authentication required */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/*" element={<Auth />} />
         <Route path="/estimate-preview" element={<EstimatePreview />} />
         <Route path="/invoice-preview" element={<InvoicePreview />} />
 
@@ -304,19 +302,21 @@ AppRoutes.displayName = "AppRoutes";
 // ============================================================================
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-          <Layout>
-            <AppRoutes />
-          </Layout>
-        </ClerkProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+            <Layout>
+              <AppRoutes />
+            </Layout>
+          </ClerkProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

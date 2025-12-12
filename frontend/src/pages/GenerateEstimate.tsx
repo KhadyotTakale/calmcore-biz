@@ -18,6 +18,7 @@ import {
   generateFinancialYearEstimateNumber,
   authManager,
 } from "@/services/api";
+import { logger } from "@/services/logger";
 
 const GenerateEstimate = () => {
   const [customerInfo, setCustomerInfo] = useState({
@@ -81,7 +82,7 @@ const GenerateEstimate = () => {
         }));
         setEstimateNumberLoading(false);
       } catch (error) {
-        console.error("Failed to generate estimate number:", error);
+        logger.error("Failed to generate estimate number", error);
         setEstimateDetails((prev) => ({
           ...prev,
           estimateNumber: `EST-${Date.now().toString().slice(-6)}`,
@@ -326,7 +327,7 @@ const GenerateEstimate = () => {
             });
           }
         } catch (itemError) {
-          console.error(`❌ Failed to process item ${i + 1}:`, itemError);
+          logger.error(`Failed to process item ${i + 1}`, itemError);
           itemErrors.push(`Item "${item.description}": ${itemError.message}`);
         }
       }
@@ -347,13 +348,13 @@ const GenerateEstimate = () => {
             last_name: customerData.name.split(" ").slice(1).join(" ") || "",
             addresses: customerData.address
               ? [
-                  {
-                    line1: customerData.address,
-                    region: customerData.state || "",
-                    country: "India",
-                    country_code: "IN",
-                  },
-                ]
+                {
+                  line1: customerData.address,
+                  region: customerData.state || "",
+                  country: "India",
+                  country_code: "IN",
+                },
+              ]
               : [],
             phone_numbers: customerData.phone
               ? [{ number: customerData.phone, type: "mobile" }]
@@ -374,7 +375,7 @@ const GenerateEstimate = () => {
         `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
       );
     } catch (error) {
-      console.error("❌ Error creating estimate:", error);
+      logger.error("Error creating estimate", error);
       const errorMessage = error.message || "An unexpected error occurred";
       alert("Failed to create estimate: " + errorMessage);
       setValidationErrors([errorMessage]);
@@ -399,13 +400,12 @@ const GenerateEstimate = () => {
     if (!bookingSlug) return;
 
     const shareableLink = `${window.location.origin}/estimate-preview?id=${bookingSlug}`;
-    const message = `Hello ${
-      customerInfo.name
-    }! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
-      estimateDetails.validUntil
-    ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
-      2
-    )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
+    const message = `Hello ${customerInfo.name
+      }! 👋\n\nThank you for your interest in Mrudgandh services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
+        estimateDetails.validUntil
+      ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
+        2
+      )}\n\nFeel free to reach out for any questions!\n\nTeam Mrudgandh`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -456,13 +456,12 @@ const GenerateEstimate = () => {
                 <div className="flex flex-col items-center flex-1">
                   <button
                     onClick={() => goToStep(step)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                      currentStep === step
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${currentStep === step
                         ? "bg-primary text-primary-foreground"
                         : currentStep > step
-                        ? "bg-primary/20 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    }`}
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
                   >
                     {step}
                   </button>
@@ -475,9 +474,8 @@ const GenerateEstimate = () => {
                 </div>
                 {step < 4 && (
                   <div
-                    className={`h-0.5 flex-1 mx-2 ${
-                      currentStep > step ? "bg-primary" : "bg-muted"
-                    }`}
+                    className={`h-0.5 flex-1 mx-2 ${currentStep > step ? "bg-primary" : "bg-muted"
+                      }`}
                   />
                 )}
               </div>
@@ -895,9 +893,8 @@ const GenerateEstimate = () => {
 
           {/* Summary Sidebar */}
           <div
-            className={`space-y-6 ${
-              currentStep === 4 ? "block" : "hidden lg:block"
-            }`}
+            className={`space-y-6 ${currentStep === 4 ? "block" : "hidden lg:block"
+              }`}
           >
             <motion.div
               initial={{ opacity: 0, x: 20 }}

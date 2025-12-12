@@ -185,7 +185,6 @@ export const DashboardHeader = memo(() => {
           });
         }
       } catch (error) {
-        console.error("Error fetching sales:", error);
         if (isMounted) {
           setSalesData({ today: 0, month: 0, total: 0 });
         }
