@@ -111,6 +111,47 @@ class AuthManager {
 const authManager = new AuthManager();
 
 // ============================================================================
+// PUBLIC AUTH TOKEN CACHING (Performance Optimization)
+// ============================================================================
+let publicAuthPromise: Promise<string> | null = null;
+let publicAuthToken: string | null = null;
+
+async function getPublicAuthToken(): Promise<string> {
+  // Return cached token if available
+  if (publicAuthToken) return publicAuthToken;
+
+  // Return existing promise if request is in-flight
+  if (publicAuthPromise) return publicAuthPromise;
+
+  // Create new request
+  publicAuthPromise = (async () => {
+    try {
+      const headers: any = { ...BASE_HEADERS };
+      const clerkUserId = authManager.getClerkUserId();
+      if (clerkUserId) {
+        headers["x-elegant-userid"] = clerkUserId;
+      }
+
+      const response = await fetch(`${BASE_URL}/auth/me`, { headers });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get public auth token: ${response.status}`);
+      }
+
+      const data = await response.json();
+      publicAuthToken = data.authToken;
+      return data.authToken;
+    } catch (err) {
+      publicAuthPromise = null; // Clear promise on error so retry is possible
+      throw err;
+    }
+  })();
+
+  return publicAuthPromise;
+}
+
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -1170,6 +1211,79 @@ export async function getBookingBySlugPublic(
   return response.json();
 }
 
+// NEW FUNCTIONS - For Public Estimate/Invoice Access
+export async function getBookingBySlugWithPublicAuth(
+  bookingSlug: string
+): Promise<Booking[]> {
+  // Get public auth token using cached helper
+  const publicToken = await getPublicAuthToken();
+  const clerkUserId = authManager.getClerkUserId();
+
+  // Strategy 1: Try with public token
+  if (publicToken) {
+    const requestHeaders: any = {
+      ...BASE_HEADERS,
+      Authorization: `Bearer ${publicToken}`,
+    };
+    if (clerkUserId) {
+      requestHeaders["x-elegant-userid"] = clerkUserId;
+    }
+
+    const response = await fetch(`${BASE_URL}/booking_by_slug/${bookingSlug}`, {
+      headers: requestHeaders,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    }
+
+    // If response is NOT ok (e.g. 500, 403), throw error
+    throw new ApiError(
+      response.status,
+      response.statusText,
+      "Failed to fetch booking with public token"
+    );
+  }
+
+  throw new Error("Failed to obtain public auth token");
+}
+
+export async function getBookingWithPublicAuth(bookingId: number): Promise<Booking> {
+  // Get public auth token using cached helper
+  const publicToken = await getPublicAuthToken();
+  const clerkUserId = authManager.getClerkUserId();
+
+  // Strategy 1: Try with public token
+  if (publicToken) {
+    const requestHeaders: any = {
+      ...BASE_HEADERS,
+      Authorization: `Bearer ${publicToken}`,
+    };
+    if (clerkUserId) {
+      requestHeaders["x-elegant-userid"] = clerkUserId;
+    }
+
+    const response = await fetch(`${BASE_URL}/booking/${bookingId}`, {
+      headers: requestHeaders,
+    });
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    throw new ApiError(
+      response.status,
+      response.statusText,
+      "Failed to fetch booking details with public token"
+    );
+  }
+
+  throw new Error("Failed to obtain public auth token");
+}
+
+
+
 // ============================================================================
 // SHOPS API
 // ============================================================================
@@ -1222,6 +1336,37 @@ export async function updateShopInfo(
     true
   );
 }
+
+// NEW: Fetch shop info with public auth (like getBookingBySlugWithPublicAuth)
+export async function getShopInfoPublic(shopsId: string): Promise<any> {
+  try {
+    // 1. Get public auth token using cached helper
+    const publicToken = await getPublicAuthToken();
+
+    if (!publicToken) {
+      throw new Error("Failed to obtain public auth token");
+    }
+
+    // 2. Fetch shop info with Bearer token
+    const shopInfoResponse = await fetch(`${BASE_URL}/shops_info/${shopsId}`, {
+      headers: {
+        ...BASE_HEADERS,
+        Authorization: `Bearer ${publicToken}`, // Correct way to pass token
+      },
+    });
+
+    if (!shopInfoResponse.ok) {
+      throw new Error(`Failed to fetch shop info: ${shopInfoResponse.status}`);
+    }
+
+    return await shopInfoResponse.json();
+  } catch (error) {
+    logger.error('Error fetching public shop info', error);
+    throw error;
+  }
+}
+
+
 
 // ============================================================================
 // AUTH API (Public - no token needed)
@@ -1517,6 +1662,9 @@ export default {
   getBookingBySlug,
   updateBookingItem,
   getBookingItems,
+  getBookingBySlugWithPublicAuth,
+  getBookingWithPublicAuth,
+
 
   // Shops
   getCurrentShop,
@@ -1524,6 +1672,8 @@ export default {
   updateShop,
   getShopInfo,
   updateShopInfo,
+  getShopInfoPublic,
+
 
   // Storage
   saveEstimateToStorage,

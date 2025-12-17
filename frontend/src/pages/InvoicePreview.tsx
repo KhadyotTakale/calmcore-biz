@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Download, Printer, X, Loader2 } from "lucide-react";
-import { getBookingBySlug, getBooking, getShopInfo } from "@/services/api";
+import { getBookingBySlugWithPublicAuth, getBookingWithPublicAuth, getShopInfoPublic } from "@/services/api";
 import { logger } from "@/services/logger";
 
 // Number to words converter
@@ -103,25 +103,73 @@ const InvoicePreview = () => {
       }
 
       try {
-        // Fetch shop info first
+        // Fetch shop info logic removed to prevent auto-redirects.
+        // We will extract shop info from the booking details below.
         let shopData = null;
-        try {
-          const shopInfoResponse = await getShopInfo();
-          shopData = shopInfoResponse.shops_settings;
-          setShopInfo(shopData);
-        } catch (shopErr) {
-          // Continue without shop info - use defaults
-        }
 
-        // Get booking by slug (uses customer auth internally)
-        const bookingArray = await getBookingBySlug(bookingSlug);
+        // Get booking by slug (uses public auth)
+        const bookingArray = await getBookingBySlugWithPublicAuth(bookingSlug);
 
         if (!bookingArray || bookingArray.length === 0) {
           throw new Error("Booking not found");
         }
 
         const booking = bookingArray[0];
-        const bookingDetails = await getBooking(booking.id);
+        const bookingDetails = await getBookingWithPublicAuth(booking.id);
+
+        // Extract shops_id from booking data
+        const shopsId = bookingDetails._shop_info?.shops_id || bookingDetails.shops_id;
+
+        // Fetch complete shop info using public auth if we have a shops_id
+        if (shopsId) {
+          try {
+            const shopInfoData = await getShopInfoPublic(shopsId);
+
+            if (shopInfoData && shopInfoData.shops_settings) {
+              setShopInfo({
+                logo_url: shopInfoData.shops_settings.logo_url || '',
+                company_name: shopInfoData.shops_settings.company_name || '',
+                address: shopInfoData.shops_settings.address || '',
+                email: shopInfoData.shops_settings.email || '',
+                phone: shopInfoData.shops_settings.phone || '',
+                declaration: shopInfoData.shops_settings.declaration || '',
+                bank_details: shopInfoData.shops_settings.bank_details || null,
+                signature: shopInfoData.shops_settings.signature || '',
+              });
+              shopData = shopInfoData;
+            }
+          } catch (shopError) {
+            logger.error('Failed to fetch shop info, using fallback', shopError);
+            // Fallback to basic shop info from booking if API call fails
+            if (bookingDetails._customers?._shops) {
+              const shop = bookingDetails._customers._shops;
+              setShopInfo({
+                logo_url: shop.logo || '',
+                company_name: shop.name || '',
+                address: shop.description || '',
+                email: '',
+                phone: '',
+                declaration: '',
+                bank_details: null,
+                signature: ''
+              });
+            }
+          }
+        } else if (bookingDetails._customers?._shops) {
+          // Fallback if no shops_id is found
+          const shop = bookingDetails._customers._shops;
+          setShopInfo({
+            logo_url: shop.logo || '',
+            company_name: shop.name || '',
+            address: shop.description || '',
+            email: '',
+            phone: '',
+            declaration: '',
+            bank_details: null,
+            signature: ''
+          });
+        }
+
         const bookingItems =
           bookingDetails._booking_items_of_bookings?.items || [];
 
@@ -370,26 +418,26 @@ const InvoicePreview = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Action Buttons - Hidden when printing */}
-      <div className="fixed top-4 right-4 flex gap-2 print:hidden z-50">
+      <div className="fixed top-4 right-4 flex flex-col md:flex-row gap-2 print:hidden z-50">
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg shadow transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg shadow transition-colors text-sm"
           title="Print"
         >
           <Printer className="h-4 w-4" />
-          Print
+          <span className="md:inline">Print</span>
         </button>
         <button
           onClick={handleDownloadPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition-colors text-sm"
           title="Download PDF"
         >
           <Download className="h-4 w-4" />
-          Download PDF
+          <span className="md:inline">PDF</span>
         </button>
         <button
           onClick={handleClose}
-          className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg shadow transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg shadow transition-colors text-sm"
           title="Close"
         >
           <X className="h-4 w-4" />
@@ -397,13 +445,13 @@ const InvoicePreview = () => {
       </div>
 
       {/* PAGE 1 */}
-      <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-white p-12 mb-8 print:mb-0 print:page-break-after-always">
+      <div className="w-full md:max-w-[210mm] min-h-[297mm] mx-auto bg-white p-4 md:p-12 mb-8 print:mb-0 print:page-break-after-always print:max-w-[210mm] print:p-12 shadow-lg md:shadow-none">
         {/* Header */}
         <CompanyHeader />
 
         {/* Customer Section */}
-        <div className="grid grid-cols-3 gap-4 mb-6 border border-gray-800">
-          <div className="p-3 border-r border-gray-800">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-4 mb-6 border border-gray-800">
+          <div className="p-3 border-b md:border-b-0 md:border-r border-gray-800">
             <p className="font-semibold text-sm mb-2">
               Bill To Name – {customerInfo.name}
             </p>
@@ -411,7 +459,7 @@ const InvoicePreview = () => {
               Address: {customerInfo.address || "-"}
             </p>
           </div>
-          <div className="p-3 border-r border-gray-800">
+          <div className="p-3 border-b md:border-b-0 md:border-r border-gray-800">
             <p className="font-semibold text-sm mb-1">
               Invoice No. - {invoiceDetails.invoiceNumber}
             </p>
@@ -438,80 +486,82 @@ const InvoicePreview = () => {
         </div>
 
         {/* Items Table - WITHOUT IMAGE COLUMN */}
-        <table className="w-full border-collapse border border-gray-800 mb-4">
-          <thead>
-            <tr className="bg-white">
-              <th className="border border-gray-800 p-2 text-left text-sm font-bold">
-                DESCRIPTION
-              </th>
-              <th className="border border-gray-800 p-2 text-center text-sm font-bold">
-                QTY
-              </th>
-              <th className="border border-gray-800 p-2 text-right text-sm font-bold">
-                RATE (₹)
-              </th>
-              <th className="border border-gray-800 p-2 text-right text-sm font-bold">
-                AMOUNT (₹)
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, index) => (
-              <tr key={index}>
-                <td className="border border-gray-800 p-2 text-sm">
-                  {item.description}
+        <div className="overflow-x-auto mb-4">
+          <table className="w-full border-collapse border border-gray-800 min-w-[600px] md:min-w-0">
+            <thead>
+              <tr className="bg-white">
+                <th className="border border-gray-800 p-2 text-left text-sm font-bold">
+                  DESCRIPTION
+                </th>
+                <th className="border border-gray-800 p-2 text-center text-sm font-bold">
+                  QTY
+                </th>
+                <th className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  RATE (₹)
+                </th>
+                <th className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  AMOUNT (₹)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr key={index}>
+                  <td className="border border-gray-800 p-2 text-sm">
+                    {item.description}
+                  </td>
+                  <td className="border border-gray-800 p-2 text-center text-sm">
+                    {item.quantity}
+                  </td>
+                  <td className="border border-gray-800 p-2 text-right text-sm">
+                    ₹{item.rate.toFixed(2)}
+                  </td>
+                  <td className="border border-gray-800 p-2 text-right text-sm font-semibold">
+                    ₹{item.amount.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <td
+                  colSpan="3"
+                  className="border border-gray-800 p-2 text-sm font-semibold"
+                >
+                  Grand Total
                 </td>
-                <td className="border border-gray-800 p-2 text-center text-sm">
-                  {item.quantity}
-                </td>
-                <td className="border border-gray-800 p-2 text-right text-sm">
-                  ₹{item.rate.toFixed(2)}
-                </td>
-                <td className="border border-gray-800 p-2 text-right text-sm font-semibold">
-                  ₹{item.amount.toFixed(2)}
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{subtotal.toFixed(2)}
                 </td>
               </tr>
-            ))}
-            <tr>
-              <td
-                colSpan="3"
-                className="border border-gray-800 p-2 text-sm font-semibold"
-              >
-                Grand Total
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{subtotal.toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3" className="border border-gray-800 p-2 text-sm">
-                {cgst}% CGST
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{cgstAmount.toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="3" className="border border-gray-800 p-2 text-sm">
-                {sgst}% SGST
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{sgstAmount.toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td
-                colSpan="3"
-                className="border border-gray-800 p-2 text-sm font-semibold"
-              >
-                Net Amount Payable
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{total.toFixed(2)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              <tr>
+                <td colSpan="3" className="border border-gray-800 p-2 text-sm">
+                  {cgst}% CGST
+                </td>
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{cgstAmount.toFixed(2)}
+                </td>
+              </tr>
+              <tr>
+                <td colSpan="3" className="border border-gray-800 p-2 text-sm">
+                  {sgst}% SGST
+                </td>
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{sgstAmount.toFixed(2)}
+                </td>
+              </tr>
+              <tr>
+                <td
+                  colSpan="3"
+                  className="border border-gray-800 p-2 text-sm font-semibold"
+                >
+                  Net Amount Payable
+                </td>
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{total.toFixed(2)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         {/* Amount in Words */}
         <div className="border border-gray-800 p-2 mb-6">
@@ -540,7 +590,7 @@ const InvoicePreview = () => {
       </div>
 
       {/* PAGE 2 */}
-      <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-white p-12 print:page-break-before-always">
+      <div className="w-full md:max-w-[210mm] min-h-[297mm] mx-auto bg-white p-4 md:p-12 print:page-break-before-always print:max-w-[210mm] print:p-12 shadow-lg md:shadow-none">
         {/* Header */}
         <CompanyHeader />
 
