@@ -97,11 +97,11 @@ const LandingPage = () => {
             <div className="flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-sm">
                 <span className="font-heading text-xl font-bold text-white">
-                  E
+                  T
                 </span>
               </div>
               <span className="font-heading text-xl font-bold text-foreground">
-                Elegant Pro
+                Tamhan
               </span>
             </div>
 
@@ -421,7 +421,7 @@ const LandingPage = () => {
                 </h2>
                 <p className="mb-8 text-lg text-muted-foreground">
                   Join businesses managing their operations efficiently with
-                  Elegant Pro
+                  Tamhan
                 </p>
                 <button
                   onClick={() => navigate("/auth")}
@@ -463,11 +463,11 @@ const LandingPage = () => {
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success">
                   <span className="font-heading text-xl font-bold text-white">
-                    E
+                    T
                   </span>
                 </div>
                 <span className="font-heading text-xl font-bold text-foreground">
-                  Elegant Pro
+                  Tamhan
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -564,7 +564,7 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2025 Elegant Pro. All rights reserved.</p>
+            <p>&copy; 2025 Tamhan. All rights reserved.</p>
           </div>
         </div>
       </footer>

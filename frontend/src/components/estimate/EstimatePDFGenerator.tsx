@@ -2,6 +2,18 @@ import React from "react";
 // @ts-ignore
 import logoUrl from "../../assets/estimator-saas.png";
 
+interface EstimatePDFGeneratorProps {
+  customerInfo: any;
+  estimateDetails: any;
+  items: any[];
+  subtotal: number;
+  discount: number;
+  discountAmount: number;
+  tax: number;
+  taxAmount: number;
+  total: number;
+}
+
 const EstimatePDFGenerator = ({
   customerInfo,
   estimateDetails,
@@ -12,9 +24,9 @@ const EstimatePDFGenerator = ({
   tax,
   taxAmount,
   total,
-}) => {
+}: EstimatePDFGeneratorProps) => {
   // Function to convert image to base64
-  const getBase64Image = async (url) => {
+  const getBase64Image = async (url: string) => {
     try {
       const response = await fetch(url);
       const blob = await response.blob();
@@ -32,9 +44,11 @@ const EstimatePDFGenerator = ({
   const generatePDF = async () => {
     try {
       // Dynamically import libraries
+      // @ts-ignore - CDN imports don't have type declarations
       const html2canvas = (
         await import("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm")
       ).default;
+      // @ts-ignore - CDN imports don't have type declarations
       const { jsPDF } = await import(
         "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm"
       );
@@ -57,9 +71,9 @@ const EstimatePDFGenerator = ({
       pdfContainer.style.fontFamily = "Arial, sans-serif";
 
       const logoHtml = logoBase64
-        ? `<img src="${logoBase64}" alt="QuoteBhai Logo" style="height: 60px; margin-bottom: 15px;" />`
+        ? `<img src="${logoBase64}" alt="Tamhan Logo" style="height: 60px; margin-bottom: 15px;" />`
         : `<div style="height: 60px; margin-bottom: 15px; display: flex; align-items: center;">
-             <h2 style="margin: 0; color: #2c5f2d; font-size: 24px; font-weight: bold;">QUOTEBHAI</h2>
+             <h2 style="margin: 0; color: #2c5f2d; font-size: 24px; font-weight: bold;">TAMHAN</h2>
            </div>`;
 
       pdfContainer.innerHTML = `
@@ -70,7 +84,7 @@ const EstimatePDFGenerator = ({
               ${logoHtml}
               <div style="font-size: 11px; line-height: 1.6; color: #333;">
                 <p style="margin: 3px 0;"><strong>Address:</strong> Kodre Farm, Vadgaon Khurd,<br/>Behind Rajyog Society, Pune, MH 411068</p>
-                <p style="margin: 3px 0;"><strong>Email:</strong> support@quotebhai.com</p>
+                <p style="margin: 3px 0;"><strong>Email:</strong> support@tamhn.com</p>
                 <p style="margin: 3px 0;"><strong>Phone:</strong> +91 9371711378 / +91 9850567505</p>
               </div>
             </div>
@@ -123,7 +137,7 @@ const EstimatePDFGenerator = ({
             <tbody>
               ${items
           .map(
-            (item, index) => `
+            (item: any, index: number) => `
                 <tr style="background-color: ${index % 2 === 0 ? "#ffffff" : "#f8f9fa"
               };">
                   <td style="padding: 10px 8px; border: 1px solid #dee2e6;">${item.description || "No description"
@@ -208,7 +222,7 @@ const EstimatePDFGenerator = ({
           <!-- Footer -->
           <div style="text-align: center; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 10px; color: #666;">
             <p style="margin: 5px 0;">Thank you for your business!</p>
-            <p style="margin: 5px 0;">Copyright © 2025 QuoteBhai | Powered by Elegant Enterprises</p>
+            <p style="margin: 5px 0;">Copyright © 2025 Tamhan</p>
           </div>
         </div>
       `;

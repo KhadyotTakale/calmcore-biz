@@ -9,6 +9,12 @@ interface RazorpayPaymentProps {
   onError: (error: string) => void;
 }
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const RazorpayPayment = ({
   isOpen,
   onClose,
@@ -48,20 +54,20 @@ const RazorpayPayment = ({
           key: "rzp_test_1DP5mmOlF5G5ag",
           amount: 200000, // ₹2000 in paise
           currency: "INR",
-          name: "Elegant Pro",
+          name: "Tamhan",
           description: "Premium Subscription - Monthly",
           image: "https://cdn-icons-png.flaticon.com/512/2942/2942813.png",
           handler: function (response: any) {
             onSuccess(response.razorpay_payment_id);
           },
           prefill: {
-            name: "Elegant Pro User",
-            email: "admin@elegant.com",
+            name: "Tamhan User",
+            email: "admin@tamhn.com",
             contact: "9999999999",
           },
           notes: {
             subscription_plan: "premium_monthly",
-            app_name: "Elegant Pro Estimate Generator",
+            app_name: "Tamhan Estimate Generator",
           },
           theme: {
             color: "#6366f1",

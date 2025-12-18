@@ -39,7 +39,7 @@ const LogoIcon = memo(() => (
     transition={{ duration: 0.6 }}
     className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-success shadow-primary"
   >
-    <span className="font-heading text-2xl font-bold text-white">E</span>
+    <span className="font-heading text-2xl font-bold text-white">T</span>
   </motion.div>
 ));
 
@@ -243,7 +243,7 @@ export const DashboardHeader = memo(() => {
                 transition={{ delay: 0.2 }}
                 className="font-heading text-2xl font-bold text-foreground"
               >
-                Elegant Enterprises
+                Tamhan
               </motion.h1>
               <p className="text-sm text-muted-foreground">Premium Account</p>
             </div>

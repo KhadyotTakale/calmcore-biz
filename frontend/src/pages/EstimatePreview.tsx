@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Download, Printer, X, Loader2 } from "lucide-react";
+import { Download, Printer, X, Loader2, LayoutTemplate } from "lucide-react";
 import { getBookingBySlugWithPublicAuth, getBookingWithPublicAuth, getShopInfoPublic } from "@/services/api";
 import { useNavigate } from "react-router-dom";
 import { logger } from "@/services/logger";
+import ModernPurpleTemplate from "@/components/templates/ModernPurpleTemplate";
+import FreshTealTemplate from "@/components/templates/FreshTealTemplate";
 
 
 // Number to words converter
@@ -92,6 +94,7 @@ const EstimatePreview = () => {
   const [shopInfo, setShopInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('modern'); // Default to modern for demo
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -138,6 +141,8 @@ const EstimatePreview = () => {
                 declaration: shopInfoData.shops_settings.declaration || '',
                 bank_details: shopInfoData.shops_settings.bank_details || null,
                 signature: shopInfoData.shops_settings.signature || '',
+                gstin: shopInfoData.shops_settings.gstin || '',
+                state: shopInfoData.shops_settings.state || ''
               });
               shopData = shopInfoData;
             }
@@ -154,7 +159,9 @@ const EstimatePreview = () => {
                 phone: '',
                 declaration: '',
                 bank_details: null,
-                signature: ''
+                signature: '',
+                gstin: '',
+                state: ''
               });
             }
           }
@@ -169,7 +176,9 @@ const EstimatePreview = () => {
             phone: '',
             declaration: '',
             bank_details: null,
-            signature: ''
+            signature: '',
+            gstin: '',
+            state: ''
           });
         }
 
@@ -194,17 +203,19 @@ const EstimatePreview = () => {
               (bookingItem.quantity || 1) *
               (parseFloat(bookingItem.price) || itemDetails?.price || 0),
             imageUrl: imageUrl,
+            hsn_sac: itemDetails?.hsn_sac || '', // Assuming this field exists or needs to be added
+            gst: itemDetails?.gst || 0, // Assuming this field exists
           };
         });
 
-        // Calculate totals (use default tax rates if not stored)
+        // Calculate totals (use 0 if not stored, do NOT default to 9)
         const firstBookingItem = bookingItems[0];
         const savedEstimateData = firstBookingItem?.booking_items_info || {};
 
         const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
         const discount = savedEstimateData.tax_info?.discount || 0;
-        const cgst = savedEstimateData.tax_info?.cgst || 9;
-        const sgst = savedEstimateData.tax_info?.sgst || 9;
+        const cgst = savedEstimateData.tax_info?.cgst || 0;
+        const sgst = savedEstimateData.tax_info?.sgst || 0;
         const discountAmount = 0;
         const taxableAmount = subtotal;
         const cgstAmount = (taxableAmount * cgst) / 100;
@@ -219,7 +230,7 @@ const EstimatePreview = () => {
                 savedEstimateData.customer_info.name.trim()) ||
               (bookingDetails._customers?.Full_name &&
                 bookingDetails._customers.Full_name.trim()) ||
-              "Customer",
+              "",
             email:
               (savedEstimateData.customer_info?.email &&
                 savedEstimateData.customer_info.email.trim()) ||
@@ -254,7 +265,7 @@ const EstimatePreview = () => {
           estimateDetails: {
             estimateNumber:
               savedEstimateData.estimate_details?.estimateNumber ||
-              `EST-${booking.id}`,
+              `EST - ${booking.id} `,
             date:
               savedEstimateData.estimate_details?.date ||
               new Date(booking.created_at).toISOString().split("T")[0],
@@ -360,7 +371,7 @@ const EstimatePreview = () => {
 
   const amountInWords = numberToWords(Math.floor(total)) + " Rupees Only";
 
-  // Helper function to render company header
+  // Helper function to render company header (Legacy)
   const CompanyHeader = () => (
     <div className="flex justify-between items-start mb-6">
       <div>
@@ -416,35 +427,8 @@ const EstimatePreview = () => {
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Action Buttons - Hidden when printing */}
-      <div className="fixed top-4 right-4 flex flex-col md:flex-row gap-2 print:hidden z-50">
-        <button
-          onClick={handlePrint}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg shadow transition-colors text-sm"
-          title="Print"
-        >
-          <Printer className="h-4 w-4" />
-          <span className="md:inline">Print</span>
-        </button>
-        <button
-          onClick={handleDownloadPDF}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition-colors text-sm"
-          title="Download PDF"
-        >
-          <Download className="h-4 w-4" />
-          <span className="md:inline">PDF</span>
-        </button>
-        <button
-          onClick={handleClose}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg shadow transition-colors text-sm"
-          title="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
+  const renderStandardTemplate = () => (
+    <>
       {/* PAGE 1 */}
       <div className="w-full md:max-w-[210mm] min-h-[297mm] mx-auto bg-white p-4 md:p-12 mb-8 print:mb-0 print:page-break-after-always print:max-w-[210mm] print:p-12 shadow-lg md:shadow-none">
         {/* Header */}
@@ -488,187 +472,266 @@ const EstimatePreview = () => {
         </div>
 
         {/* Items Table */}
-              <th className="border border-gray-800 p-2 text-center text-sm font-bold">
-                QTY
-              </th>
-              <th className="border border-gray-800 p-2 text-right text-sm font-bold">
-                RATE (₹)
-              </th>
-              <th className="border border-gray-800 p-2 text-right text-sm font-bold">
-                AMOUNT (₹)
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, index) => (
-              <tr key={index}>
-                <td className="border border-gray-800 p-2 text-center">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.description}
-                      className="w-12 h-12 object-cover rounded mx-auto"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs mx-auto">
-                      No img
-                    </div>
-                  )}
+        <div className="overflow-x-auto mb-4">
+          <table className="w-full border-collapse border border-gray-800 min-w-[600px] md:min-w-0">
+            <thead>
+              <tr className="bg-white">
+                <th className="border border-gray-800 p-2 text-center text-sm font-bold">
+                  QTY
+                </th>
+                <th className="border border-gray-800 p-2 text-left text-sm font-bold">
+                  DESCRIPTION
+                </th>
+                <th className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  RATE (₹)
+                </th>
+                <th className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  AMOUNT (₹)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, index) => (
+                <tr key={index}>
+                  <td className="border border-gray-800 p-2 text-center text-sm">
+                    {item.quantity}
+                  </td>
+                  <td className="border border-gray-800 p-2 text-sm">
+                    {item.description}
+                  </td>
+                  <td className="border border-gray-800 p-2 text-right text-sm">
+                    ₹{item.rate.toFixed(2)}
+                  </td>
+                  <td className="border border-gray-800 p-2 text-right text-sm font-semibold">
+                    ₹{item.amount.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <td
+                  colSpan="3"
+                  className="border border-gray-800 p-2 text-sm font-semibold"
+                >
+                  Grand Total
                 </td>
-                <td className="border border-gray-800 p-2 text-sm">
-                  {item.description}
-                </td>
-                <td className="border border-gray-800 p-2 text-center text-sm">
-                  {item.quantity}
-                </td>
-                <td className="border border-gray-800 p-2 text-right text-sm">
-                  ₹{item.rate.toFixed(2)}
-                </td>
-                <td className="border border-gray-800 p-2 text-right text-sm font-semibold">
-                  ₹{item.amount.toFixed(2)}
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{subtotal.toFixed(2)}
                 </td>
               </tr>
-            ))}
-            <tr>
-              <td
-                colSpan="4"
-                className="border border-gray-800 p-2 text-sm font-semibold"
-              >
-                Grand Total
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{subtotal.toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="4" className="border border-gray-800 p-2 text-sm">
-                {cgst}% CGST
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{cgstAmount.toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan="4" className="border border-gray-800 p-2 text-sm">
-                {sgst}% SGST
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{sgstAmount.toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td
-                colSpan="4"
-                className="border border-gray-800 p-2 text-sm font-semibold"
-              >
-                Net Amount Payable
-              </td>
-              <td className="border border-gray-800 p-2 text-right text-sm font-bold">
-                ₹{total.toFixed(2)}
-              </td>
-            </tr>
-          </tbody>
-        </table >
+              <tr>
+                <td colSpan="3" className="border border-gray-800 p-2 text-sm">
+                  {cgst}% CGST
+                </td>
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{cgstAmount.toFixed(2)}
+                </td>
+              </tr>
+              <tr>
+                <td colSpan="3" className="border border-gray-800 p-2 text-sm">
+                  {sgst}% SGST
+                </td>
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{sgstAmount.toFixed(2)}
+                </td>
+              </tr>
+              <tr>
+                <td
+                  colSpan="3"
+                  className="border border-gray-800 p-2 text-sm font-semibold"
+                >
+                  Net Amount Payable
+                </td>
+                <td className="border border-gray-800 p-2 text-right text-sm font-bold">
+                  ₹{total.toFixed(2)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-  {/* Amount in Words */ }
-  < div className = "border border-gray-800 p-2 mb-6" >
-    <p className="text-sm">
-      <strong>Amount In Words:</strong> {amountInWords}
-    </p>
-        </div >
+        {/* Amount in Words */}
+        <div className="border border-gray-800 p-2 mb-6">
+          <p className="text-sm">
+            <strong>Amount In Words:</strong> {amountInWords}
+          </p>
+        </div>
 
-  {/* Declaration */ }
-  < div className = "mb-6" >
-    <p className="font-bold text-sm mb-2">Declaration:</p>
-{
-  shopInfo?.declaration ? (
-    <p className="text-xs text-gray-700 whitespace-pre-line">
-      {shopInfo.declaration}
-    </p>
-  ) : (
-  <ol className="list-decimal list-inside text-xs space-y-1 text-gray-700">
-    <li>
-      I/We declare that this estimate shows the actual price of
-      services described and that all particulars are true and
-      correct.
-    </li>
-  </ol>
-)
-}
-        </div >
-      </div >
+        {/* Declaration */}
+        <div className="mb-6">
+          <p className="font-bold text-sm mb-2">Declaration:</p>
+          {shopInfo?.declaration ? (
+            <p className="text-xs text-gray-700 whitespace-pre-line">
+              {shopInfo.declaration}
+            </p>
+          ) : (
+            <ol className="list-decimal list-inside text-xs space-y-1 text-gray-700">
+              <li>
+                I/We declare that this invoice shows the actual price of services
+                described and that all particulars are true and correct.
+              </li>
+            </ol>
+          )}
+        </div>
+      </div>
 
-  {/* PAGE 2 */ }
-  < div className = "w-full md:max-w-[210mm] min-h-[297mm] mx-auto bg-white p-4 md:p-12 print:page-break-before-always print:max-w-[210mm] print:p-12 shadow-lg md:shadow-none" >
-    {/* Header */ }
-    < CompanyHeader />
+      {/* PAGE 2 */}
+      <div className="w-full md:max-w-[210mm] min-h-[297mm] mx-auto bg-white p-4 md:p-12 print:page-break-before-always print:max-w-[210mm] print:p-12 shadow-lg md:shadow-none">
+        {/* Header */}
+        <CompanyHeader />
 
-    {/* Bank Details */ }
-    < div className = "mb-8" >
+        {/* Bank Details */}
+        <div className="mb-8">
           <h2 className="font-bold text-base mb-4">
             Bank Details for NEFT/RTGS
           </h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-            <div>
-              <p>
-                Beneficiary Name -{" "}
-                <strong>
-                  {shopInfo?.bank_details?.beneficiary_name || "-"}
-                </strong>
+            {shopInfo?.bank_details ? (
+              <>
+                <div>Bank Name:</div>
+                <div className="font-semibold">
+                  {shopInfo.bank_details.bank_name || "-"}
+                </div>
+                <div>Bank Account No.:</div>
+                <div className="font-semibold">
+                  {shopInfo.bank_details.account_number || "-"}
+                </div>
+                <div>Bank IFSC Code:</div>
+                <div className="font-semibold">
+                  {shopInfo.bank_details.ifsc_code || "-"}
+                </div>
+                <div>Account Holder's Name:</div>
+                <div className="font-semibold">
+                  {shopInfo.bank_details.beneficiary_name ||
+                    shopInfo.company_name ||
+                    "-"}
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 italic col-span-2">
+                Bank details not available
               </p>
-              <p>
-                Name of the Bank -{" "}
-                <strong>{shopInfo?.bank_details?.bank_name || "-"}</strong>
-              </p>
-              <p>
-                Branch -{" "}
-                <strong>{shopInfo?.bank_details?.branch || "-"}</strong>
-              </p>
-              <p>
-                IFSC Code -{" "}
-                <strong>{shopInfo?.bank_details?.ifsc_code || "-"}</strong>
-              </p>
-            </div>
-            <div>
-              <p>
-                Account No. -{" "}
-                <strong>{shopInfo?.bank_details?.account_number || "-"}</strong>
-              </p>
-            </div>
+            )}
           </div>
-        </div >
+        </div>
 
-  {/* For Customer */ }
-  < div className = "mb-16" >
-    <p className="text-sm mb-8">
-      For {shopInfo?.company_name || customerInfo.name}
-    </p>
-        </div >
-
-  {/* Signature */ }
-  < div className = "text-left mt-32" >
-  {
-    shopInfo?.signature?(
-            <div>
+        {/* Signature */}
+        <div className="mt-16 flex justify-end">
+          <div className="text-center">
+            {shopInfo?.signature ? (
               <img
                 src={shopInfo.signature}
                 alt="Signature"
-                className="h-16 mb-2 max-w-[150px] object-contain"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
+                className="h-16 mb-2 object-contain"
               />
-              <p className="text-sm">Authorized Signatory</p>
-            </div >
-          ) : (
-  <p className="text-sm">Signature</p>
-)}
-        </div >
-      </div >
-    </div >
+            ) : (
+              <div className="h-16 mb-2"></div>
+            )}
+            <div className="w-48 border-t border-gray-800 pt-2">
+              <p className="text-sm font-bold">Authorised Signatory</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Action Buttons - Hidden when printing */}
+      <div className="fixed top-4 right-4 flex flex-col md:flex-row gap-2 print:hidden z-50">
+
+        {/* Template Selector Tool */}
+        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow mr-2">
+          <LayoutTemplate className="h-4 w-4 text-gray-600" />
+          <select
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+            className="text-sm border-none bg-transparent focus:ring-0 cursor-pointer outline-none"
+          >
+            <option value="standard">Standard Template</option>
+            <option value="modern">Modern Purple</option>
+            <option value="teal">Fresh Teal (New)</option>
+          </select>
+        </div>
+
+        <button
+          onClick={handlePrint}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg shadow transition-colors text-sm"
+          title="Print"
+        >
+          <Printer className="h-4 w-4" />
+          <span className="md:inline">Print</span>
+        </button>
+        <button
+          onClick={handleDownloadPDF}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow transition-colors text-sm"
+          title="Download PDF"
+        >
+          <Download className="h-4 w-4" />
+          <span className="md:inline">PDF</span>
+        </button>
+        <button
+          onClick={handleClose}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg shadow transition-colors text-sm"
+          title="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {selectedTemplate === 'modern' ? (
+        <ModernPurpleTemplate
+          type="ESTIMATE"
+          data={{
+            shopInfo: shopInfo || {},
+            customerInfo: customerInfo || {},
+            documentDetails: {
+              documentNumber: estimateDetails.estimateNumber,
+              date: estimateDetails.date,
+              validUntil: estimateDetails.validUntil,
+              title: 'ESTIMATE'
+            },
+            items: items || [],
+            totals: {
+              subtotal,
+              total,
+              cgstAmount,
+              sgstAmount,
+              cgstRate: cgst,
+              sgstRate: sgst,
+              amountInWords
+            }
+          }}
+        />
+      ) : selectedTemplate === 'teal' ? (
+        <FreshTealTemplate
+          type="ESTIMATE"
+          data={{
+            shopInfo: shopInfo || {},
+            customerInfo: customerInfo || {},
+            documentDetails: {
+              documentNumber: estimateDetails.estimateNumber,
+              date: estimateDetails.date,
+              validUntil: estimateDetails.validUntil,
+              title: 'ESTIMATE'
+            },
+            items: items || [],
+            totals: {
+              subtotal,
+              total,
+              cgstAmount,
+              sgstAmount,
+              cgstRate: cgst,
+              sgstRate: sgst,
+              amountInWords
+            }
+          }}
+        />
+      ) : (
+        renderStandardTemplate()
+      )}
+
+    </div>
   );
 };
 

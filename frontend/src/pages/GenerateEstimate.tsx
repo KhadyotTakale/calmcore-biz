@@ -145,13 +145,13 @@ const GenerateEstimate = () => {
     ]);
   }, []);
 
-  const removeItem = useCallback((id) => {
+  const removeItem = useCallback((id: number) => {
     setItems((prev) =>
       prev.length > 1 ? prev.filter((item) => item.id !== id) : prev
     );
   }, []);
 
-  const updateItem = useCallback((id, field, value) => {
+  const updateItem = useCallback((id: number, field: string, value: any) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -166,7 +166,7 @@ const GenerateEstimate = () => {
     );
   }, []);
 
-  const handleItemSelect = useCallback((selectedItem, itemId) => {
+  const handleItemSelect = useCallback((selectedItem: any, itemId: number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
@@ -199,7 +199,7 @@ const GenerateEstimate = () => {
     }
   }, [currentStep]);
 
-  const goToStep = useCallback((step) => {
+  const goToStep = useCallback((step: number) => {
     setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -401,9 +401,9 @@ const GenerateEstimate = () => {
 
     const shareableLink = `${window.location.origin}/estimate-preview?id=${bookingSlug}`;
     const message = `Hello ${customerInfo.name
-      }! 👋\n\nThank you for your interest in QuoteBhai services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
+      }! 👋\n\nThank you for your interest in Tamhan services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
         estimateDetails.validUntil
-      ).toLocaleDateString("en-IN")}\n\nFeel free to reach out for any questions!\n\nTeam QuoteBhai`;
+      ).toLocaleDateString("en-IN")}\n\nFeel free to reach out for any questions!\n\nTeam Tamhan`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -860,7 +860,7 @@ const GenerateEstimate = () => {
                     })
                   }
                   placeholder="Add any additional notes or terms and conditions..."
-                  rows="4"
+                  rows={4}
                   className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </motion.div>

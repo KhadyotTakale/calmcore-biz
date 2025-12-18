@@ -17,7 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { getBookings } from "@/services/api";
+import { getBookings, convertToInvoice } from "@/services/api";
 import { usePDFGenerator } from "@/hooks/usePDFGenerator";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -154,6 +154,8 @@ interface TransactionCardProps {
 const TransactionCard = memo(({ booking }: TransactionCardProps) => {
   const navigate = useNavigate();
   const { generateAndDownloadPDF, isGenerating } = usePDFGenerator();
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionError, setConversionError] = useState<string | null>(null);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
@@ -170,17 +172,15 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
       if (booking.customerPhone === "N/A") return;
 
       const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.bookingSlug}`;
-      const message = `Hello ${
-        booking.customerName
-      }! 👋\n\nThank you for your interest in Elegant Enterprises. ✨\n\nPlease find your estimate here:\n${shareableLink}\n\n${
-        booking.validUntil
+      const message = `Hello ${booking.customerName
+        }! 👋\n\nThank you for your interest in Tamhan. ✨\n\nPlease find your estimate here:\n${shareableLink}\n\n${booking.validUntil
           ? `Valid Until: ${new Date(booking.validUntil).toLocaleDateString(
-              "en-IN"
-            )}\n`
+            "en-IN"
+          )}\n`
           : ""
-      }Estimated Amount: ₹${booking.totalAmount.toFixed(
-        2
-      )}\n\nThis estimate is valid for 30 days from the date of issue.\n\nTeam Elegant Enterprises`;
+        }Estimated Amount: ₹${booking.totalAmount.toFixed(
+          2
+        )}\n\nThis estimate is valid for 30 days from the date of issue.\n\nTeam Tamhan`;
 
       const phone = booking.customerPhone.replace(/\D/g, "");
       const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -197,11 +197,28 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
   }, [navigate, booking.bookingSlug]);
 
   const handleConvertToInvoice = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation();
-      navigate(`/invoice-preview?id=${booking.bookingSlug}`);
+
+      if (!window.confirm("Do you really want to convert this estimate to an invoice?")) {
+        return;
+      }
+
+      try {
+        setIsConverting(true);
+        setConversionError(null);
+        await convertToInvoice(booking.id);
+        navigate(`/invoice-preview?id=${booking.bookingSlug}`);
+      } catch (error: any) {
+        console.error("Failed to convert to invoice:", error);
+        // Show error state on the button/UI instead of alert
+        setConversionError(error.message || "Failed to convert");
+        setTimeout(() => setConversionError(null), 3000); // Reset after 3 seconds
+      } finally {
+        setIsConverting(false);
+      }
     },
-    [navigate, booking.bookingSlug]
+    [navigate, booking.id, booking.bookingSlug]
   );
 
   return (
@@ -226,11 +243,10 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
             </div>
           </div>
           <span
-            className={`rounded-full px-2 py-1 text-xs font-medium ${
-              booking.status === "expired"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-success/10 text-success"
-            }`}
+            className={`rounded-full px-2 py-1 text-xs font-medium ${booking.status === "expired"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-success/10 text-success"
+              }`}
           >
             {booking.status === "expired" ? "Expired" : "Active"}
           </span>
@@ -297,9 +313,19 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
             )}
             {isGenerating ? "Sending..." : "Send"}
           </button>
-          <button onClick={handleConvertToInvoice} className="btn-primary">
-            <FileText className="h-4 w-4" />
-            Invoice
+          <button
+            onClick={handleConvertToInvoice}
+            disabled={isConverting}
+            className={conversionError ? "btn-destructive w-full" : "btn-primary"}
+          >
+            {isConverting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : conversionError ? (
+              <span className="text-xs truncate">{conversionError}</span>
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            {!isConverting && !conversionError && "Invoice"}
           </button>
         </div>
       </div>
@@ -464,13 +490,12 @@ const Pagination = memo(
                 key={index}
                 onClick={() => typeof page === "number" && onPageChange(page)}
                 disabled={page === "..." || page === currentPage || loading}
-                className={`min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-colors ${
-                  page === currentPage
-                    ? "bg-primary text-primary-foreground"
-                    : page === "..."
+                className={`min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-colors ${page === currentPage
+                  ? "bg-primary text-primary-foreground"
+                  : page === "..."
                     ? "cursor-default text-muted-foreground"
                     : "border border-border bg-background hover:bg-accent"
-                } disabled:cursor-not-allowed`}
+                  } disabled:cursor-not-allowed`}
               >
                 {page}
               </button>

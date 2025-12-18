@@ -35,8 +35,8 @@ const Settings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
   const [companyInfo, setCompanyInfo] = useState({
-    name: "Elegant Pro",
-    email: "admin@elegant.com",
+    name: "Tamhan",
+    email: "admin@tamhn.com",
     logo: "",
   });
 
@@ -87,8 +87,8 @@ const Settings = () => {
         const shopInfo = await getShopInfo();
 
         setCompanyInfo({
-          name: shopInfo.shops_settings?.company_name || "Elegant Pro",
-          email: shopInfo.shops_settings?.email || "admin@elegant.com",
+          name: shopInfo.shops_settings?.company_name || "Tamhan",
+          email: shopInfo.shops_settings?.email || "admin@tamhn.com",
           logo: shopInfo.shops_settings?.logo_url || "",
         });
       } catch (error) {
@@ -102,7 +102,20 @@ const Settings = () => {
     loadCompanyInfo();
   }, []);
 
-  const settingsSections = [
+  interface SettingsItem {
+    icon: typeof User;
+    label: string;
+    description: string;
+    toggle?: boolean;
+    onClick?: () => void;
+  }
+
+  interface SettingsSection {
+    title: string;
+    items: SettingsItem[];
+  }
+
+  const settingsSections: SettingsSection[] = [
     {
       title: "Account",
       items: [
@@ -259,12 +272,12 @@ const Settings = () => {
                     // Fallback if image fails to load
                     e.currentTarget.style.display = "none";
                     e.currentTarget.parentElement!.innerHTML =
-                      '<span class="font-heading text-2xl font-bold text-white">E</span>';
+                      '<span class="font-heading text-2xl font-bold text-white">T</span>';
                   }}
                 />
               ) : (
                 <span className="font-heading text-2xl font-bold text-white">
-                  E
+                  T
                 </span>
               )}
             </div>

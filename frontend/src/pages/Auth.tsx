@@ -90,12 +90,12 @@ const FeaturesSection = memo(() => {
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-sm">
             <span className="font-heading text-2xl font-bold text-white">
-              E
+              T
             </span>
           </div>
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">
-              Elegant Pro
+              Tamhan
             </h1>
             <p className="text-sm text-muted-foreground">
               Business Management Suite
@@ -138,7 +138,7 @@ const FeaturesSection = memo(() => {
               Join 500+ businesses
             </p>
             <p className="text-sm text-muted-foreground">
-              Already managing their operations with Elegant Pro
+              Already managing their operations with Tamhan
             </p>
           </div>
         </div>

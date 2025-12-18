@@ -146,13 +146,13 @@ const GenerateInvoice = () => {
     ]);
   }, []);
 
-  const removeItem = useCallback((id) => {
+  const removeItem = useCallback((id: number) => {
     setItems((prev) =>
       prev.length > 1 ? prev.filter((item) => item.id !== id) : prev
     );
   }, []);
 
-  const updateItem = useCallback((id, field, value) => {
+  const updateItem = useCallback((id: number, field: string, value: any) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -167,7 +167,7 @@ const GenerateInvoice = () => {
     );
   }, []);
 
-  const handleItemSelect = useCallback((selectedItem, itemId) => {
+  const handleItemSelect = useCallback((selectedItem: any, itemId: number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
@@ -200,7 +200,7 @@ const GenerateInvoice = () => {
     }
   }, [currentStep]);
 
-  const goToStep = useCallback((step) => {
+  const goToStep = useCallback((step: number) => {
     setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -395,11 +395,11 @@ const GenerateInvoice = () => {
 
     const shareableLink = `${window.location.origin}/invoice-preview?id=${bookingSlug}`;
     const message = `Hello ${customerInfo.name
-      }! 👋\n\nThank you for your business with QuoteBhai. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
+      }! 👋\n\nThank you for your business with Tamhan. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
         invoiceDetails.dueDate
       ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
         2
-      )}\n\nPlease make payment by the due date.\n\nTeam QuoteBhai`;
+      )}\n\nPlease make payment by the due date.\n\nTeam Tamhan`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -853,7 +853,7 @@ const GenerateInvoice = () => {
                     })
                   }
                   placeholder="Add any additional notes or payment terms..."
-                  rows="4"
+                  rows={4}
                   className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                 />
               </motion.div>

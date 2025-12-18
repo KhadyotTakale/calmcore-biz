@@ -62,11 +62,11 @@ export const BottomNav = () => {
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-primary">
               <span className="font-heading text-lg font-bold text-white">
-                E
+                T
               </span>
             </div>
             <span className="font-heading text-xl font-bold text-foreground">
-              Elegant Enterprises
+              Tamhan
             </span>
           </Link>
 
@@ -108,11 +108,10 @@ export const BottomNav = () => {
                     >
                       <motion.div
                         whileTap={{ scale: 0.95 }}
-                        className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${
-                          isActive
+                        className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${isActive
                             ? "bg-primary/10 text-primary"
                             : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                        }`}
+                          }`}
                       >
                         <Icon
                           className="w-5 h-5"

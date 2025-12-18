@@ -1073,7 +1073,25 @@ export async function getBookings(
   );
 }
 
-export async function getBooking(bookingId: number): Promise<Booking> {
+export const convertToInvoice = async (bookingId: number): Promise<any> => {
+  return apiFetch(
+    `/booking/${bookingId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        booking_items_info: {
+          document_type: "invoice",
+        },
+      }),
+    },
+    false,
+    true // Use customer auth
+  );
+};
+
+export const getBooking = async (
+  bookingId: number
+): Promise<Booking | null> => {
   return apiFetch<Booking>(`/booking/${bookingId}`, {}, false, true);
 }
 

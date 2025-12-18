@@ -57,11 +57,11 @@ export const DesktopNav = () => {
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-primary">
               <span className="font-heading text-lg font-bold text-white">
-                E
+                T
               </span>
             </div>
             <span className="font-heading text-xl font-bold text-foreground">
-              Elegant Enterprises
+              Tamhan
             </span>
           </Link>
 
@@ -76,11 +76,10 @@ export const DesktopNav = () => {
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className={`flex items-center gap-2 rounded-xl px-4 py-2 transition-all ${
-                      isActive
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 transition-all ${isActive
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {isActive && (
                       <motion.div
@@ -98,9 +97,8 @@ export const DesktopNav = () => {
                       strokeWidth={isActive ? 2.5 : 2}
                     />
                     <span
-                      className={`relative z-10 font-medium ${
-                        isActive ? "text-primary" : ""
-                      }`}
+                      className={`relative z-10 font-medium ${isActive ? "text-primary" : ""
+                        }`}
                     >
                       {item.label}
                     </span>

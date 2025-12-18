@@ -9,32 +9,42 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Brand Colors - Sophisticated & Calming */
-    --primary: 100 52% 63%; /* Sage Green #9CA986 */
+    --primary: 100 52% 63%;
+    /* Sage Green #9CA986 */
     --primary-foreground: 0 0% 100%;
-    --primary-light: 88 28% 70%; /* Lighter sage */
+    --primary-light: 88 28% 70%;
+    /* Lighter sage */
 
-    --secondary: 261 54% 74%; /* Soft Lavender #B4A7D6 */
+    --secondary: 261 54% 74%;
+    /* Soft Lavender #B4A7D6 */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 12 100% 82%; /* Warm Peach #FFB4A2 */
+    --accent: 12 100% 82%;
+    /* Warm Peach #FFB4A2 */
     --accent-foreground: 195 11% 19%;
 
-    --info: 185 83% 76%; /* Sky Blue #A8DADC */
+    --info: 185 83% 76%;
+    /* Sky Blue #A8DADC */
     --info-foreground: 195 11% 19%;
 
     /* Success, Warning, Error */
-    --success: 165 43% 72%; /* Mint Fresh #98D8C8 */
+    --success: 165 43% 72%;
+    /* Mint Fresh #98D8C8 */
     --success-foreground: 195 11% 19%;
 
-    --warning: 45 86% 75%; /* Golden Hour #F6D186 */
+    --warning: 45 86% 75%;
+    /* Golden Hour #F6D186 */
     --warning-foreground: 195 11% 19%;
 
-    --destructive: 339 77% 84%; /* Coral Pink #F7B5CA */
+    --destructive: 339 77% 84%;
+    /* Coral Pink #F7B5CA */
     --destructive-foreground: 195 11% 19%;
 
     /* Base Colors */
-    --background: 60 33% 98%; /* Cream White #FAF9F6 */
-    --foreground: 195 11% 19%; /* Charcoal #2D3436 */
+    --background: 60 33% 98%;
+    /* Cream White #FAF9F6 */
+    --foreground: 195 11% 19%;
+    /* Charcoal #2D3436 */
 
     --card: 0 0% 100%;
     --card-foreground: 195 11% 19%;
@@ -42,8 +52,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 195 11% 19%;
 
-    --muted: 0 0% 96%; /* Soft Gray #F5F5F5 */
-    --muted-foreground: 0 0% 62%; /* Warm Gray #9E9E9E */
+    --muted: 0 0% 96%;
+    /* Soft Gray #F5F5F5 */
+    --muted-foreground: 0 0% 62%;
+    /* Warm Gray #9E9E9E */
 
     --border: 0 0% 91%;
     --input: 0 0% 91%;
@@ -52,26 +64,18 @@ All colors MUST be HSL.
     --radius: 1rem;
 
     /* Custom Design Tokens */
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(88, 22%, 63%) 0%,
-      hsl(165, 43%, 72%) 100%
-    );
-    --gradient-secondary: linear-gradient(
-      135deg,
-      hsl(261, 34%, 74%) 0%,
-      hsl(185, 43%, 76%) 100%
-    );
-    --gradient-accent: linear-gradient(
-      135deg,
-      hsl(12, 100%, 82%) 0%,
-      hsl(339, 77%, 84%) 100%
-    );
-    --gradient-background: linear-gradient(
-      135deg,
-      hsl(60, 33%, 98%) 0%,
-      hsl(0, 0%, 96%) 100%
-    );
+    --gradient-primary: linear-gradient(135deg,
+        hsl(88, 22%, 63%) 0%,
+        hsl(165, 43%, 72%) 100%);
+    --gradient-secondary: linear-gradient(135deg,
+        hsl(261, 34%, 74%) 0%,
+        hsl(185, 43%, 76%) 100%);
+    --gradient-accent: linear-gradient(135deg,
+        hsl(12, 100%, 82%) 0%,
+        hsl(339, 77%, 84%) 100%);
+    --gradient-background: linear-gradient(135deg,
+        hsl(60, 33%, 98%) 0%,
+        hsl(0, 0%, 96%) 100%);
 
     /* Light mode shadows */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -86,8 +90,10 @@ All colors MUST be HSL.
 
   .dark {
     /* Even darker surface and background for maximum contrast */
-    --background: 195 15% 5%; /* near-black navy */
-    --foreground: 60 33% 98%; /* crisp white for text */
+    --background: 195 15% 5%;
+    /* near-black navy */
+    --foreground: 60 33% 98%;
+    /* crisp white for text */
 
     /* Surfaces - darker with slight color retention */
     --card: 195 15% 7%;
@@ -97,17 +103,20 @@ All colors MUST be HSL.
     --popover-foreground: 60 33% 98%;
 
     /* Brand colors: deeper and more saturated for dark mode */
-    --primary: 88 28% 35%; /* deep sage */
+    --primary: 88 28% 35%;
+    /* deep sage */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 261 40% 35%; /* deep purple */
+    --secondary: 261 40% 35%;
+    /* deep purple */
     --secondary-foreground: 0 0% 100%;
 
     /* Muted / subtle surfaces - closer to background */
     --muted: 195 12% 8%;
     --muted-foreground: 0 0% 60%;
 
-    --accent: 12 85% 45%; /* deeper warm accent */
+    --accent: 12 85% 45%;
+    /* deeper warm accent */
     --accent-foreground: 0 0% 100%;
 
     /* Borders / inputs - subtle distinction from background */
@@ -135,11 +144,9 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground font-body;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--background)) 0%,
-      hsl(var(--muted)) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--background)) 0%,
+        hsl(var(--muted)) 100%);
     min-height: 100vh;
   }
 
@@ -167,27 +174,21 @@ All colors MUST be HSL.
   }
 
   .gradient-primary {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--primary)) 0%,
-      hsl(var(--success)) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--primary)) 0%,
+        hsl(var(--success)) 100%);
   }
 
   .gradient-secondary {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--secondary)) 0%,
-      hsl(var(--info)) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--secondary)) 0%,
+        hsl(var(--info)) 100%);
   }
 
   .gradient-accent {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--accent)) 0%,
-      hsl(var(--destructive)) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--accent)) 0%,
+        hsl(var(--destructive)) 100%);
   }
 
   .glass-effect {
@@ -231,6 +232,7 @@ All colors MUST be HSL.
       opacity: 0;
       transform: translateY(8px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -241,6 +243,7 @@ All colors MUST be HSL.
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
@@ -251,6 +254,7 @@ All colors MUST be HSL.
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -320,6 +324,7 @@ All colors MUST be HSL.
 
   /* Reduce motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
+
     .fade-in-fast,
     .fade-in,
     .slide-in-bottom,
@@ -396,6 +401,7 @@ All colors MUST be HSL.
   }
 
   @media (prefers-reduced-motion: reduce) {
+
     .gradient-primary,
     .gradient-secondary,
     .gradient-accent {
@@ -409,6 +415,7 @@ All colors MUST be HSL.
    ============================================================================ */
 
 @layer utilities {
+
   /* Transaction card with optimized animations */
   .transaction-card {
     animation: fadeInCard 0.3s ease-out;
@@ -419,6 +426,7 @@ All colors MUST be HSL.
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -499,6 +507,7 @@ All colors MUST be HSL.
 
   /* Reduce motion support */
   @media (prefers-reduced-motion: reduce) {
+
     .transaction-card,
     .stat-card {
       animation: none;
@@ -562,6 +571,7 @@ All colors MUST be HSL.
       opacity: 0;
       transform: translateY(-10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -574,10 +584,12 @@ All colors MUST be HSL.
 
   /* Pulse animation for loading states */
   @keyframes pulse {
+
     0%,
     100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.5;
     }
@@ -593,6 +605,7 @@ All colors MUST be HSL.
       opacity: 0;
       transform: scale(0.95);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -827,6 +840,8 @@ All colors MUST be HSL.
       box-shadow: none !important;
       transition: none !important;
       animation: none !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
   }
 
@@ -873,6 +888,7 @@ All colors MUST be HSL.
      ============================================================================ */
 
   @media (prefers-reduced-motion: reduce) {
+
     .animate-slideDown,
     .animate-scaleUp,
     .item-card,

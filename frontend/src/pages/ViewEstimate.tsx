@@ -108,11 +108,11 @@ const ViewEstimate = () => {
         >
           {/* Company Header */}
           <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6">
-            <h2 className="text-2xl font-bold mb-1">QUOTEBHAI</h2>
+            <h2 className="text-2xl font-bold mb-1">TAMHAN</h2>
             <div className="text-sm space-y-1">
               <p>Kodre Farm, Vadgaon Khurd,</p>
               <p>Behind Rajyog Society, Pune, MH 411068</p>
-              <p>Email: support@quotebhai.com</p>
+              <p>Email: support@tamhn.com</p>
               <p>Phone: +91 9371711378 / +91 9850567505</p>
             </div>
             {/* Divider */}
@@ -168,7 +168,7 @@ const ViewEstimate = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {estimateData.items.map((item, index) => (
+                  {estimateData.items.map((item: any, index: number) => (
                     <tr
                       key={index}
                       className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -246,7 +246,7 @@ const ViewEstimate = () => {
             {/* Footer */}
             <div className="text-center pt-6 border-t border-gray-200 text-xs text-gray-500">
               <p className="mb-1">Thank you for your business!</p>
-              <p>Copyright © 2025 QuoteBhai | Powered by Elegant Enterprises</p>
+              <p>Copyright © 2025 Tamhan | Powered by Tamhan</p>
             </div>
           </div>
         </motion.div>
@@ -276,7 +276,7 @@ const ViewEstimate = () => {
         >
           <p>Thank you for your business!</p>
           <p className="mt-1">
-            © 2025 Mrudgandh | Powered by Elegant Enterprises
+            © 2025 Tamhan
           </p>
         </motion.div>
       </div>

@@ -170,14 +170,14 @@ const InvoiceCard = memo(({ invoice }: InvoiceCardProps) => {
 
       const shareableLink = `${window.location.origin}/invoice-preview?id=${invoice.bookingSlug}`;
       const message = `Hello ${invoice.customerName
-        }! 👋\n\nThank you for your business with QuoteBhai. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\n${invoice.dueDate
+        }! 👋\n\nThank you for your business with Tamhan. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\n${invoice.dueDate
           ? `Due Date: ${new Date(invoice.dueDate).toLocaleDateString(
             "en-IN"
           )}\n`
           : ""
         }Total Amount: ₹${invoice.totalAmount.toFixed(
           2
-        )}\n\nPlease make payment by the due date.\n\nTeam QuoteBhai`;
+        )}\n\nPlease make payment by the due date.\n\nTeam Tamhan`;
 
       const phone = invoice.customerPhone.replace(/\D/g, "");
       const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -216,8 +216,8 @@ const InvoiceCard = memo(({ invoice }: InvoiceCardProps) => {
           </div>
           <span
             className={`rounded-full px-2 py-1 text-xs font-medium ${invoice.status === "overdue"
-                ? "bg-destructive/10 text-destructive"
-                : "bg-warning/10 text-warning"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-warning/10 text-warning"
               }`}
           >
             {invoice.status === "overdue" ? "Overdue" : "Pending"}
@@ -455,10 +455,10 @@ const Pagination = memo(
                 onClick={() => typeof page === "number" && onPageChange(page)}
                 disabled={page === "..." || page === currentPage || loading}
                 className={`min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-colors ${page === currentPage
-                    ? "bg-secondary text-secondary-foreground"
-                    : page === "..."
-                      ? "cursor-default text-muted-foreground"
-                      : "border border-border bg-background hover:bg-accent"
+                  ? "bg-secondary text-secondary-foreground"
+                  : page === "..."
+                    ? "cursor-default text-muted-foreground"
+                    : "border border-border bg-background hover:bg-accent"
                   } disabled:cursor-not-allowed`}
               >
                 {page}
