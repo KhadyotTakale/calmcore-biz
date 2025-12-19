@@ -26,6 +26,17 @@ import {
     Lead,
 } from "@/services/api";
 import { motion } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ============================================================================
 // TYPES
@@ -267,6 +278,9 @@ const ManageCustomers = () => {
         hasNextPage: false,
         hasPrevPage: false,
     });
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [customerToDelete, setCustomerToDelete] = useState<number | null>(null);
+    const { toast } = useToast();
 
     const [formData, setFormData] = useState<CustomerFormData>({
         first_name: "",
@@ -413,13 +427,29 @@ const ManageCustomers = () => {
     };
 
     const handleDelete = async (customerId: number) => {
-        if (!confirm("Are you sure you want to delete this customer?")) return;
+        setCustomerToDelete(customerId);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!customerToDelete) return;
 
         try {
-            await deleteLead(customerId);
+            await deleteLead(customerToDelete);
+            toast({
+                title: "Customer Deleted",
+                description: "The customer has been successfully deleted.",
+            });
             handleRefresh();
         } catch (err: any) {
-            setError(err.message || "Failed to delete customer");
+            toast({
+                title: "Failed to Delete Customer",
+                description: err.message || "An error occurred while deleting the customer.",
+                variant: "destructive",
+            });
+        } finally {
+            setDeleteDialogOpen(false);
+            setCustomerToDelete(null);
         }
     };
 
@@ -600,6 +630,24 @@ const ManageCustomers = () => {
                     <Pagination pagination={paginationInfo} onPageChange={handlePageChange} loading={loading} />
                 )}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Customer?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this customer from your database. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

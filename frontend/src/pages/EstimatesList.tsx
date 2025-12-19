@@ -8,12 +8,26 @@ import {
   deleteEstimateFromStorage,
 } from "@/services/api";
 import { logger } from "@/services/logger";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const EstimatesList = () => {
   const navigate = useNavigate();
   const [estimates, setEstimates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [estimateToDelete, setEstimateToDelete] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadEstimates();
@@ -44,16 +58,32 @@ const EstimatesList = () => {
   };
 
   const handleDelete = async (estimateNumber: string) => {
-    if (!confirm("Are you sure you want to delete this estimate?")) return;
+    setEstimateToDelete(estimateNumber);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!estimateToDelete) return;
 
     try {
-      await deleteEstimateFromStorage(estimateNumber);
+      await deleteEstimateFromStorage(estimateToDelete);
       setEstimates(
-        estimates.filter((e) => e.estimateNumber !== estimateNumber)
+        estimates.filter((e) => e.estimateNumber !== estimateToDelete)
       );
+      toast({
+        title: "Estimate Deleted",
+        description: "The estimate has been successfully deleted.",
+      });
     } catch (error) {
       logger.error("Error deleting estimate", error);
-      alert("Failed to delete estimate");
+      toast({
+        title: "Failed to Delete Estimate",
+        description: "An error occurred while deleting the estimate.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setEstimateToDelete(null);
     }
   };
 
@@ -191,6 +221,24 @@ const EstimatesList = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this estimate. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

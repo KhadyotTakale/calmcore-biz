@@ -10,21 +10,25 @@ import {
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
 import CustomerSelector from "@/components/estimate/CustomerSelector";
+import CountryCodeSelector from "@/components/estimate/CountryCodeSelector";
 import {
   createBooking,
   addBookingItem,
   updateBookingItem,
   createLead,
   generateFinancialYearEstimateNumber,
+  getShopInfo,
   authManager,
 } from "@/services/api";
 import { logger } from "@/services/logger";
+import { useToast } from "@/hooks/use-toast";
 
 const GenerateInvoice = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
     phone: "",
+    countryCode: "+91",
     address: "",
     state: "",
     gstin: "",
@@ -61,6 +65,8 @@ const GenerateInvoice = () => {
   const [validationErrors, setValidationErrors] = useState([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [shopName, setShopName] = useState("Your Business");
+  const { toast } = useToast();
 
   const totalSteps = 4;
 
@@ -93,6 +99,22 @@ const GenerateInvoice = () => {
     };
 
     initInvoiceNumber();
+  }, []);
+
+  // Fetch shop info on mount
+  useEffect(() => {
+    const fetchShopInfo = async () => {
+      try {
+        const shopInfo = await getShopInfo();
+        if (shopInfo?.shops_settings?.company_name) {
+          setShopName(shopInfo.shops_settings.company_name);
+        }
+      } catch (error) {
+        logger.error("Failed to fetch shop info", error);
+      }
+    };
+
+    fetchShopInfo();
   }, []);
 
   // ============================================================================
@@ -282,6 +304,7 @@ const GenerateInvoice = () => {
         name,
         email,
         phone,
+        countryCode: customerInfo.countryCode,
         address,
         state,
         gstin,
@@ -372,13 +395,18 @@ const GenerateInvoice = () => {
       setBookingSlug(booking.booking_slug);
       setInvoiceCreated(true);
 
-      alert(
-        `✓ Invoice created successfully!\n\nInvoice #: ${invoiceDetails.invoiceNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
-      );
+      toast({
+        title: "✓ Invoice Created Successfully!",
+        description: `Invoice #${invoiceDetails.invoiceNumber} for ${customerData.name} has been created. You can now download or send to customer.`,
+      });
     } catch (error) {
       logger.error("Error creating invoice", error);
       const errorMessage = error.message || "An unexpected error occurred";
-      alert("Failed to create invoice: " + errorMessage);
+      toast({
+        title: "Failed to Create Invoice",
+        description: errorMessage,
+        variant: "destructive",
+      });
       setValidationErrors([errorMessage]);
     } finally {
       setLoading(false);
@@ -395,14 +423,18 @@ const GenerateInvoice = () => {
 
     const shareableLink = `${window.location.origin}/invoice-preview?id=${bookingSlug}`;
     const message = `Hello ${customerInfo.name
-      }! 👋\n\nThank you for your business with Tamhan. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\nDue Date: ${new Date(
-        invoiceDetails.dueDate
-      ).toLocaleDateString("en-IN")}\nTotal Amount: ₹${total.toFixed(
+      }! 👋\n\nThank you for your business with ${shopName}. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\n${invoiceDetails.dueDate
+        ? `Due Date: ${new Date(invoiceDetails.dueDate).toLocaleDateString(
+          "en-IN"
+        )}\n`
+        : ""
+      }Total Amount: ₹${total.toFixed(
         2
-      )}\n\nPlease make payment by the due date.\n\nTeam Tamhan`;
+      )}\n\nPlease make payment by the due date.\n\nTeam ${shopName}`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
-    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+    const countryCode = customerInfo.countryCode.replace(/\+/g, "");
+    const whatsappUrl = `https://wa.me/${countryCode}${phone}?text=${encodeURIComponent(
       message
     )}`;
 
@@ -601,6 +633,7 @@ const GenerateInvoice = () => {
                           name: customer.name,
                           email: customer.email,
                           phone: customer.phone,
+                          countryCode: customerInfo.countryCode,
                           address: customer.address,
                           state: customer.state,
                           gstin: customer.gstin,
@@ -613,18 +646,29 @@ const GenerateInvoice = () => {
                     <label className="mb-2 block text-sm font-medium text-foreground">
                       Phone <span className="text-destructive">*</span>
                     </label>
-                    <input
-                      type="tel"
-                      value={customerInfo.phone}
-                      onChange={(e) =>
-                        setCustomerInfo({
-                          ...customerInfo,
-                          phone: e.target.value,
-                        })
-                      }
-                      placeholder="XXXXXXXXXX"
-                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                    />
+                    <div className="grid grid-cols-[120px_1fr] gap-2">
+                      <CountryCodeSelector
+                        value={customerInfo.countryCode}
+                        onChange={(code) =>
+                          setCustomerInfo({
+                            ...customerInfo,
+                            countryCode: code,
+                          })
+                        }
+                      />
+                      <input
+                        type="tel"
+                        value={customerInfo.phone}
+                        onChange={(e) =>
+                          setCustomerInfo({
+                            ...customerInfo,
+                            phone: e.target.value,
+                          })
+                        }
+                        placeholder="XXXXXXXXXX"
+                        className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-medium text-foreground">

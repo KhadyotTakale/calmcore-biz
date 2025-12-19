@@ -18,7 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { getBookings } from "@/services/api";
+import { getBookings, getShopInfo } from "@/services/api";
 import { useDebounce } from "@/hooks/useDebounce";
 
 // ============================================================================
@@ -40,6 +40,7 @@ interface NormalizedInvoice {
   bookingSlug: string;
   customerName: string;
   customerPhone: string;
+  customerCountryCode: string;
   customerEmail: string;
   invoiceNumber: string;
   invoiceDate: string;
@@ -79,6 +80,8 @@ const normalizeInvoice = (booking: BookingData): NormalizedInvoice => {
     bookingInfo?.customer_info?.name || customer?.Full_name || "Guest Customer";
   const customerPhone =
     bookingInfo?.customer_info?.phone || customer?.cust_info?.phone || "N/A";
+  const customerCountryCode =
+    bookingInfo?.customer_info?.countryCode || "+91"; // Fallback to India for backward compatibility
   const customerEmail =
     bookingInfo?.customer_info?.email || customer?.email || "";
 
@@ -127,6 +130,7 @@ const normalizeInvoice = (booking: BookingData): NormalizedInvoice => {
     bookingSlug: booking.booking_slug,
     customerName,
     customerPhone,
+    customerCountryCode,
     customerEmail,
     invoiceNumber,
     invoiceDate,
@@ -149,9 +153,10 @@ const normalizeInvoice = (booking: BookingData): NormalizedInvoice => {
 
 interface InvoiceCardProps {
   invoice: NormalizedInvoice;
+  shopName: string;
 }
 
-const InvoiceCard = memo(({ invoice }: InvoiceCardProps) => {
+const InvoiceCard = memo(({ invoice, shopName }: InvoiceCardProps) => {
   const navigate = useNavigate();
 
   const handleDownload = useCallback(
@@ -170,17 +175,18 @@ const InvoiceCard = memo(({ invoice }: InvoiceCardProps) => {
 
       const shareableLink = `${window.location.origin}/invoice-preview?id=${invoice.bookingSlug}`;
       const message = `Hello ${invoice.customerName
-        }! 👋\n\nThank you for your business with Tamhan. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\n${invoice.dueDate
+        }! 👋\n\nThank you for your business with ${shopName}. 🌿\n\nPlease find your invoice here:\n${shareableLink}\n\n${invoice.dueDate
           ? `Due Date: ${new Date(invoice.dueDate).toLocaleDateString(
             "en-IN"
           )}\n`
           : ""
         }Total Amount: ₹${invoice.totalAmount.toFixed(
           2
-        )}\n\nPlease make payment by the due date.\n\nTeam Tamhan`;
+        )}\n\nPlease make payment by the due date.\n\nTeam ${shopName}`;
 
       const phone = invoice.customerPhone.replace(/\D/g, "");
-      const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+      const countryCode = invoice.customerCountryCode.replace(/\+/g, "");
+      const whatsappUrl = `https://wa.me/${countryCode}${phone}?text=${encodeURIComponent(
         message
       )}`;
 
@@ -501,12 +507,29 @@ const Invoices = () => {
     hasNextPage: false,
     hasPrevPage: false,
   });
+  const [shopName, setShopName] = useState("Your Business");
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     fetchBookings(currentPage);
   }, [currentPage]);
+
+  // Fetch shop info
+  useEffect(() => {
+    const fetchShopInfo = async () => {
+      try {
+        const shopInfo = await getShopInfo();
+        if (shopInfo?.shops_settings?.company_name) {
+          setShopName(shopInfo.shops_settings.company_name);
+        }
+      } catch (error) {
+        console.error("Failed to fetch shop info", error);
+      }
+    };
+
+    fetchShopInfo();
+  }, []);
 
   const fetchBookings = async (page: number) => {
     try {
@@ -682,7 +705,7 @@ const Invoices = () => {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredInvoices.length > 0 ? (
                 filteredInvoices.map((invoice) => (
-                  <InvoiceCard key={invoice.id} invoice={invoice} />
+                  <InvoiceCard key={invoice.id} invoice={invoice} shopName={shopName} />
                 ))
               ) : (
                 <div className="col-span-full empty-state">

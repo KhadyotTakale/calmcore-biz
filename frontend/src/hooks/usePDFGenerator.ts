@@ -8,9 +8,11 @@ interface PDFGeneratorOptions {
   bookingSlug: string;
   customerName: string;
   customerPhone: string;
+  customerCountryCode?: string;
   estimateNumber: string;
   totalAmount: number;
   validUntil?: string;
+  shopName?: string;
 }
 
 export const usePDFGenerator = () => {
@@ -22,9 +24,11 @@ export const usePDFGenerator = () => {
         bookingSlug,
         customerName,
         customerPhone,
+        customerCountryCode = "+91",
         estimateNumber,
         totalAmount,
         validUntil,
+        shopName = "Your Business",
       } = options;
 
       try {
@@ -108,12 +112,12 @@ export const usePDFGenerator = () => {
         );
 
         if (userConfirmed) {
-          const message = `Hello ${customerName}! 👋\n\nThank you for your interest in Tamhan services. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${validUntil
+          const message = `Hello ${customerName}! 👋\n\nThank you for your interest in ${shopName}. 🌿\n\n📄 I'm attaching your estimate PDF: ${pdfFilename}\n\n${validUntil
             ? `This estimate is valid until ${validUntil}.`
             : "Please review at your earliest convenience."
-            }\n\nFeel free to reach out for any questions!\n\nTeam Tamhan`;
+            }\n\nFeel free to reach out for any questions!\n\nTeam ${shopName}`;
 
-          const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+          const whatsappUrl = `https://wa.me/${customerCountryCode.replace(/\+/g, "")}${phone}?text=${encodeURIComponent(
             message
           )}`;
 

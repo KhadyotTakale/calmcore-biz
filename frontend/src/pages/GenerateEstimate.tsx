@@ -10,21 +10,25 @@ import {
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
 import CustomerSelector from "@/components/estimate/CustomerSelector";
+import CountryCodeSelector from "@/components/estimate/CountryCodeSelector";
 import {
   createBooking,
   addBookingItem,
   updateBookingItem,
   createLead,
   generateFinancialYearEstimateNumber,
+  getShopInfo,
   authManager,
 } from "@/services/api";
 import { logger } from "@/services/logger";
+import { useToast } from "@/hooks/use-toast";
 
 const GenerateEstimate = () => {
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     email: "",
     phone: "",
+    countryCode: "+91",
     address: "",
     state: "",
     gstin: "",
@@ -61,6 +65,8 @@ const GenerateEstimate = () => {
   const [validationErrors, setValidationErrors] = useState([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [shopName, setShopName] = useState("Your Business");
+  const { toast } = useToast();
 
   const totalSteps = 4;
 
@@ -92,6 +98,22 @@ const GenerateEstimate = () => {
     };
 
     initEstimateNumber();
+  }, []);
+
+  // Fetch shop info on mount
+  useEffect(() => {
+    const fetchShopInfo = async () => {
+      try {
+        const shopInfo = await getShopInfo();
+        if (shopInfo?.shops_settings?.company_name) {
+          setShopName(shopInfo.shops_settings.company_name);
+        }
+      } catch (error) {
+        logger.error("Failed to fetch shop info", error);
+      }
+    };
+
+    fetchShopInfo();
   }, []);
 
   // ============================================================================
@@ -281,6 +303,7 @@ const GenerateEstimate = () => {
         name,
         email,
         phone,
+        countryCode: customerInfo.countryCode,
         address,
         state,
         gstin,
@@ -371,13 +394,18 @@ const GenerateEstimate = () => {
       setBookingSlug(booking.booking_slug);
       setEstimateCreated(true);
 
-      alert(
-        `✓ Estimate created successfully!\n\nEstimate #: ${estimateDetails.estimateNumber}\nCustomer: ${customerData.name}\nPhone: ${customerData.phone}\n\nYou can now download or send to customer.`
-      );
+      toast({
+        title: "✓ Estimate Created Successfully!",
+        description: `Estimate #${estimateDetails.estimateNumber} for ${customerData.name} has been created. You can now download or send to customer.`,
+      });
     } catch (error) {
       logger.error("Error creating estimate", error);
       const errorMessage = error.message || "An unexpected error occurred";
-      alert("Failed to create estimate: " + errorMessage);
+      toast({
+        title: "Failed to Create Estimate",
+        description: errorMessage,
+        variant: "destructive",
+      });
       setValidationErrors([errorMessage]);
     } finally {
       setLoading(false);
@@ -401,12 +429,13 @@ const GenerateEstimate = () => {
 
     const shareableLink = `${window.location.origin}/estimate-preview?id=${bookingSlug}`;
     const message = `Hello ${customerInfo.name
-      }! 👋\n\nThank you for your interest in Tamhan services. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
+      }! 👋\n\nThank you for your interest in ${shopName}. 🌿\n\nPlease find your estimate here:\n${shareableLink}\n\nValid until: ${new Date(
         estimateDetails.validUntil
-      ).toLocaleDateString("en-IN")}\n\nFeel free to reach out for any questions!\n\nTeam Tamhan`;
+      ).toLocaleDateString("en-IN")}\n\nFeel free to reach out for any questions!\n\nTeam ${shopName}`;
 
     const phone = customerInfo.phone.replace(/\D/g, "");
-    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+    const countryCode = customerInfo.countryCode.replace(/\+/g, "");
+    const whatsappUrl = `https://wa.me/${countryCode}${phone}?text=${encodeURIComponent(
       message
     )}`;
 
@@ -605,6 +634,7 @@ const GenerateEstimate = () => {
                           name: customer.name,
                           email: customer.email,
                           phone: customer.phone,
+                          countryCode: customerInfo.countryCode,
                           address: customer.address,
                           state: customer.state,
                           gstin: customer.gstin,
@@ -617,18 +647,29 @@ const GenerateEstimate = () => {
                     <label className="mb-2 block text-sm font-medium text-foreground">
                       Phone <span className="text-destructive">*</span>
                     </label>
-                    <input
-                      type="tel"
-                      value={customerInfo.phone}
-                      onChange={(e) =>
-                        setCustomerInfo({
-                          ...customerInfo,
-                          phone: e.target.value,
-                        })
-                      }
-                      placeholder="XXXXXXXXXX"
-                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
+                    <div className="grid grid-cols-[120px_1fr] gap-2">
+                      <CountryCodeSelector
+                        value={customerInfo.countryCode}
+                        onChange={(code) =>
+                          setCustomerInfo({
+                            ...customerInfo,
+                            countryCode: code,
+                          })
+                        }
+                      />
+                      <input
+                        type="tel"
+                        value={customerInfo.phone}
+                        onChange={(e) =>
+                          setCustomerInfo({
+                            ...customerInfo,
+                            phone: e.target.value,
+                          })
+                        }
+                        placeholder="XXXXXXXXXX"
+                        className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-medium text-foreground">

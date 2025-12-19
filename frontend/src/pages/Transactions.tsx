@@ -17,9 +17,20 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { getBookings, convertToInvoice } from "@/services/api";
+import { getBookings, convertToInvoice, getShopInfo } from "@/services/api";
 import { usePDFGenerator } from "@/hooks/usePDFGenerator";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ============================================================================
 // TYPES
@@ -40,6 +51,7 @@ interface NormalizedBooking {
   bookingSlug: string;
   customerName: string;
   customerPhone: string;
+  customerCountryCode: string;
   customerEmail: string;
   estimateNumber: string;
   estimateDate: string;
@@ -79,6 +91,8 @@ const normalizeBooking = (booking: BookingData): NormalizedBooking => {
     bookingInfo?.customer_info?.name || customer?.Full_name || "Guest Customer";
   const customerPhone =
     bookingInfo?.customer_info?.phone || customer?.cust_info?.phone || "N/A";
+  const customerCountryCode =
+    bookingInfo?.customer_info?.countryCode || "+91"; // Fallback to India for backward compatibility
   const customerEmail =
     bookingInfo?.customer_info?.email || customer?.email || "";
 
@@ -127,6 +141,7 @@ const normalizeBooking = (booking: BookingData): NormalizedBooking => {
     bookingSlug: booking.booking_slug,
     customerName,
     customerPhone,
+    customerCountryCode,
     customerEmail,
     estimateNumber,
     estimateDate,
@@ -149,13 +164,16 @@ const normalizeBooking = (booking: BookingData): NormalizedBooking => {
 
 interface TransactionCardProps {
   booking: NormalizedBooking;
+  shopName: string;
 }
 
-const TransactionCard = memo(({ booking }: TransactionCardProps) => {
+const TransactionCard = memo(({ booking, shopName }: TransactionCardProps) => {
   const navigate = useNavigate();
   const { generateAndDownloadPDF, isGenerating } = usePDFGenerator();
   const [isConverting, setIsConverting] = useState(false);
   const [conversionError, setConversionError] = useState<string | null>(null);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
@@ -173,17 +191,18 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
 
       const shareableLink = `${window.location.origin}/estimate-preview?id=${booking.bookingSlug}`;
       const message = `Hello ${booking.customerName
-        }! 👋\n\nThank you for your interest in Tamhan. ✨\n\nPlease find your estimate here:\n${shareableLink}\n\n${booking.validUntil
+        }! 👋\n\nThank you for your interest in ${shopName}. ✨\n\nPlease find your estimate here:\n${shareableLink}\n\n${booking.validUntil
           ? `Valid Until: ${new Date(booking.validUntil).toLocaleDateString(
             "en-IN"
           )}\n`
           : ""
         }Estimated Amount: ₹${booking.totalAmount.toFixed(
           2
-        )}\n\nThis estimate is valid for 30 days from the date of issue.\n\nTeam Tamhan`;
+        )}\n\nThis estimate is valid for 30 days from the date of issue.\n\nTeam ${shopName}`;
 
       const phone = booking.customerPhone.replace(/\D/g, "");
-      const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(
+      const countryCode = booking.customerCountryCode.replace(/\+/g, "");
+      const whatsappUrl = `https://wa.me/${countryCode}${phone}?text=${encodeURIComponent(
         message
       )}`;
 
@@ -197,28 +216,44 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
   }, [navigate, booking.bookingSlug]);
 
   const handleConvertToInvoice = useCallback(
-    async (e: React.MouseEvent) => {
+    (e: React.MouseEvent) => {
       e.stopPropagation();
+      setConvertDialogOpen(true);
+    },
+    []
+  );
 
-      if (!window.confirm("Do you really want to convert this estimate to an invoice?")) {
-        return;
-      }
-
+  const confirmConvert = useCallback(
+    async () => {
       try {
         setIsConverting(true);
         setConversionError(null);
-        await convertToInvoice(booking.id);
-        navigate(`/invoice-preview?id=${booking.bookingSlug}`);
+
+        const result = await convertToInvoice(booking.id);
+
+        if (result.success) {
+          toast({
+            title: "Converted to Invoice",
+            description: `Estimate #${booking.estimateNumber} has been successfully converted to an invoice.`,
+          });
+          navigate("/invoices");
+        } else {
+          throw new Error(result.error || "Conversion failed");
+        }
       } catch (error: any) {
-        console.error("Failed to convert to invoice:", error);
-        // Show error state on the button/UI instead of alert
-        setConversionError(error.message || "Failed to convert");
-        setTimeout(() => setConversionError(null), 3000); // Reset after 3 seconds
+        const errorMsg = error.message || "Failed to convert to invoice";
+        setConversionError(errorMsg);
+        toast({
+          title: "Conversion Failed",
+          description: errorMsg,
+          variant: "destructive",
+        });
       } finally {
         setIsConverting(false);
+        setConvertDialogOpen(false);
       }
     },
-    [navigate, booking.id, booking.bookingSlug]
+    [booking.id, booking.estimateNumber, navigate, toast]
   );
 
   return (
@@ -332,6 +367,24 @@ const TransactionCard = memo(({ booking }: TransactionCardProps) => {
 
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+      {/* Convert Confirmation Dialog */}
+      <AlertDialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convert to Invoice?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will convert estimate #{booking.estimateNumber} into an invoice. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmConvert} disabled={isConverting}>
+              {isConverting ? "Converting..." : "Convert"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });
@@ -537,6 +590,7 @@ const Transactions = () => {
     hasNextPage: false,
     hasPrevPage: false,
   });
+  const [shopName, setShopName] = useState("Your Business");
 
   // Debounce search for better performance
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -545,6 +599,22 @@ const Transactions = () => {
   useEffect(() => {
     fetchBookings(currentPage);
   }, [currentPage]);
+
+  // Fetch shop info
+  useEffect(() => {
+    const fetchShopInfo = async () => {
+      try {
+        const shopInfo = await getShopInfo();
+        if (shopInfo?.shops_settings?.company_name) {
+          setShopName(shopInfo.shops_settings.company_name);
+        }
+      } catch (error) {
+        console.error("Failed to fetch shop info", error);
+      }
+    };
+
+    fetchShopInfo();
+  }, []);
 
   const fetchBookings = async (page: number) => {
     try {
@@ -719,7 +789,7 @@ const Transactions = () => {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredBookings.length > 0 ? (
                 filteredBookings.map((booking) => (
-                  <TransactionCard key={booking.id} booking={booking} />
+                  <TransactionCard key={booking.id} booking={booking} shopName={shopName} />
                 ))
               ) : (
                 <div className="col-span-full empty-state">

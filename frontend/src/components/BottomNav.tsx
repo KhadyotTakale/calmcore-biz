@@ -7,6 +7,7 @@ import {
   Menu,
   X,
   LogOut,
+  HelpCircle,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +20,9 @@ const navItems = [
   { icon: Receipt, label: "Estimates", path: "/estimates" },
   { icon: FileText, label: "Invoices", path: "/invoices" },
   { icon: BarChart3, label: "Reports", path: "/reports" },
+
   { icon: Settings, label: "Settings", path: "/settings" },
+  { icon: HelpCircle, label: "How to Use", path: "/guide" },
 ];
 
 export const BottomNav = () => {
@@ -109,8 +112,8 @@ export const BottomNav = () => {
                       <motion.div
                         whileTap={{ scale: 0.95 }}
                         className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                           }`}
                       >
                         <Icon
