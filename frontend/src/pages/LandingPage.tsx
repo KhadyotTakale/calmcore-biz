@@ -222,10 +222,7 @@ const LandingPage = () => {
               src="https://plus.unsplash.com/premium_photo-1724579095984-c9f71dea7b7d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2069"
               alt="Indian Business Owner"
               className="w-full rounded-lg object-cover"
-              onError={(e) => {
-                e.target.style.display = "none";
-                e.target.nextSibling.style.display = "flex";
-              }}
+
             />
             <div className="hidden aspect-video items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-success/10">
               <div className="text-center">
@@ -297,10 +294,7 @@ const LandingPage = () => {
                   src="https://plus.unsplash.com/premium_photo-1679811674370-7761190a9db0?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=774"
                   alt="Indian Shop Management"
                   className="w-full rounded-lg object-cover"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://images.unsplash.com/photo-1582649683921-e1c9e20bce39?w=800&h=600&fit=crop";
-                  }}
+
                 />
               </div>
             </motion.div>
@@ -444,10 +438,7 @@ const LandingPage = () => {
                   src="https://plus.unsplash.com/premium_photo-1679852311419-0c1ce839a4e9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2071"
                   alt="Indian Team Collaboration"
                   className="w-full rounded-lg object-cover"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=600&fit=crop";
-                  }}
+
                 />
               </div>
             </motion.div>
