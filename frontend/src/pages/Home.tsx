@@ -43,14 +43,14 @@ const DocumentActionsSection = memo(() => (
         icon={FileText}
         title="Generate Estimate"
         description="Create a professional quotation for your customer"
-        path="/estimates/new"
+        path="/generate-estimate"
         variant="primary"
       />
       <ActionCard
         icon={FileCheck}
         title="Generate Invoice"
         description="Create and send invoices instantly"
-        path="/invoices/new"
+        path="/generate-invoice"
         variant="secondary"
       />
     </div>

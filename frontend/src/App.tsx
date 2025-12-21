@@ -230,14 +230,6 @@ const AppRoutes = memo(() => {
 
         {/* Protected Estimates Routes */}
         <Route
-          path="/estimates/new"
-          element={
-            <ProtectedRoute>
-              <GenerateEstimate />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/generate-estimate"
           element={
             <ProtectedRoute>
@@ -245,6 +237,7 @@ const AppRoutes = memo(() => {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/estimate/:bookingId"
           element={
@@ -256,7 +249,7 @@ const AppRoutes = memo(() => {
 
         {/* Protected Invoices Routes */}
         <Route
-          path="/invoices/new"
+          path="/generate-invoice"
           element={
             <ProtectedRoute>
               <GenerateInvoice />

@@ -74,13 +74,12 @@ const StatCard = memo(
               <ArrowDownRight className="h-3 w-3 text-destructive" />
             )}
             <span
-              className={`text-xs ${
-                changeType === "positive"
+              className={`text-xs ${changeType === "positive"
                   ? "text-success"
                   : changeType === "negative"
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-              }`}
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+                }`}
             >
               {change}
             </span>
@@ -255,8 +254,8 @@ const Reports = () => {
     const monthlyGrowth =
       previousMonthBookings > 0
         ? ((lastMonthBookings - previousMonthBookings) /
-            previousMonthBookings) *
-          100
+          previousMonthBookings) *
+        100
         : 0;
 
     return {
@@ -368,17 +367,16 @@ const Reports = () => {
             value={stats.totalCustomers.toString()}
             change={
               stats.monthlyGrowth !== 0
-                ? `${
-                    stats.monthlyGrowth > 0 ? "+" : ""
-                  }${stats.monthlyGrowth.toFixed(1)}% this month`
+                ? `${stats.monthlyGrowth > 0 ? "+" : ""
+                }${stats.monthlyGrowth.toFixed(1)}% this month`
                 : "No growth data"
             }
             changeType={
               stats.monthlyGrowth > 0
                 ? "positive"
                 : stats.monthlyGrowth < 0
-                ? "negative"
-                : "neutral"
+                  ? "negative"
+                  : "neutral"
             }
             gradient="stat-accent"
           />
@@ -458,7 +456,7 @@ const Reports = () => {
               title="Customer List"
               description={`${stats.totalCustomers} total customers`}
               gradient="from-secondary/10 to-secondary/5"
-              onClick={() => navigate("/customers")}
+              onClick={() => navigate("/manage-customers")}
             />
             <QuickActionCard
               title="Day Book"

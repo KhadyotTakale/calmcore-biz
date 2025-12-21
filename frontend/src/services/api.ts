@@ -187,6 +187,9 @@ export interface BookingItem {
   bookings_id: number;
   items_id: number;
   _items?: Item;
+  booking_items_info?: any;
+  quantity?: number;
+  price?: number;
 }
 
 export interface Customer {
@@ -890,7 +893,7 @@ export async function searchItems(
   perPage = 25
 ): Promise<PaginatedResponse<Item>> {
   return apiFetch<PaginatedResponse<Item>>(
-    `/items_all?item_type=Product&external=${JSON.stringify({ search, page })}`,
+    `/items_all?item_type=Product&external=${JSON.stringify({ search, page, perPage })}`,
     {},
     true,
     true
@@ -902,7 +905,7 @@ export async function getItems(
   perPage = 25
 ): Promise<PaginatedResponse<Item>> {
   return apiFetch<PaginatedResponse<Item>>(
-    `/items_all?item_type=Product&external=${JSON.stringify({ page })}`,
+    `/items_all?item_type=Product&external=${JSON.stringify({ page, perPage })}`,
     {},
     true,
     true
@@ -1066,7 +1069,7 @@ export async function getBookings(
   perPage = 25
 ): Promise<PaginatedResponse<Booking>> {
   return apiFetch<PaginatedResponse<Booking>>(
-    `/bookings?external=${JSON.stringify({ page })}`,
+    `/bookings?external=${JSON.stringify({ page, perPage })}`,
     {},
     true,
     true

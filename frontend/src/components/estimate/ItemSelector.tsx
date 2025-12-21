@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, Package, Loader2 } from "lucide-react";
+import { Search, Package, Loader2, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getItems, Item, searchItems } from "@/services/api";
 
 interface ItemSelectorProps {
@@ -18,6 +19,7 @@ const ItemSelector = ({
   onItemSelect,
   disabled = false,
 }: ItemSelectorProps) => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -165,9 +167,24 @@ const ItemSelector = ({
                     <span>Loading items...</span>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <Package className="h-8 w-8 text-muted-foreground/50" />
-                    <span>No items found</span>
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <Package className="h-12 w-12 text-muted-foreground/30" />
+                    <div className="text-center">
+                      <p className="font-medium text-foreground">No items found</p>
+                      <p className="text-xs text-muted-foreground">
+                        Try a different search or create a new item
+                      </p>
+                    </div>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        navigate("/manage-items");
+                      }}
+                      className="mt-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Create New Item
+                    </button>
                   </div>
                 )}
               </div>
@@ -284,6 +301,20 @@ const ItemSelector = ({
                       </button>
                     </div>
                   )}
+
+                {/* Add New Item Button (Sticky Bottom) */}
+                <div className="sticky bottom-0 border-t border-border bg-card p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // Prevent input blur
+                      navigate("/manage-items");
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Package className="h-4 w-4" />
+                    Create New Item
+                  </button>
+                </div>
               </>
             );
           })()}

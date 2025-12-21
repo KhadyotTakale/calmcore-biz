@@ -12,7 +12,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { useClerk } from "@clerk/clerk-react";
+import { useClerk, useUser } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
@@ -29,6 +29,7 @@ export const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useClerk();
+  const { user, isLoaded } = useUser();
   const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -63,13 +64,21 @@ export const BottomNav = () => {
         <div className="flex items-center justify-between px-6 h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-primary">
-              <span className="font-heading text-lg font-bold text-white">
-                T
-              </span>
-            </div>
+            {isLoaded && user?.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt={user.firstName || "Profile"}
+                className="h-10 w-10 rounded-xl object-cover shadow-primary"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-success shadow-primary">
+                <span className="font-heading text-lg font-bold text-white">
+                  T
+                </span>
+              </div>
+            )}
             <span className="font-heading text-xl font-bold text-foreground">
-              Tamhan
+              {isLoaded && user?.firstName ? user.firstName : "Tamhan"}
             </span>
           </Link>
 

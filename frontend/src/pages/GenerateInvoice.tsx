@@ -629,15 +629,15 @@ const GenerateInvoice = () => {
                     <CustomerSelector
                       value={customerInfo.name}
                       onCustomerSelect={(customer) => {
-                        setCustomerInfo({
+                        setCustomerInfo((prev) => ({
+                          ...prev,
                           name: customer.name,
-                          email: customer.email,
-                          phone: customer.phone,
-                          countryCode: customerInfo.countryCode,
-                          address: customer.address,
-                          state: customer.state,
-                          gstin: customer.gstin,
-                        });
+                          email: customer.email !== undefined ? customer.email : prev.email,
+                          phone: customer.phone !== undefined ? customer.phone : prev.phone,
+                          address: customer.address !== undefined ? customer.address : prev.address,
+                          state: customer.state !== undefined ? customer.state : prev.state,
+                          gstin: customer.gstin !== undefined ? customer.gstin : prev.gstin,
+                        }));
                       }}
                     />
                   </div>
@@ -993,7 +993,11 @@ const GenerateInvoice = () => {
                     <input
                       type="number"
                       value={cgst}
-                      onChange={(e) => setCgst(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setCgst(val);
+                        setSgst(val);
+                      }}
                       min="0"
                       max="100"
                       step="0.5"
@@ -1014,7 +1018,11 @@ const GenerateInvoice = () => {
                     <input
                       type="number"
                       value={sgst}
-                      onChange={(e) => setSgst(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setSgst(val);
+                        setCgst(val);
+                      }}
                       min="0"
                       max="100"
                       step="0.5"

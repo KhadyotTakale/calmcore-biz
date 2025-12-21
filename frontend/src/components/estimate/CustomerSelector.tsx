@@ -5,11 +5,11 @@ import { getLeads, Lead } from "@/services/api";
 interface CustomerSelectorProps {
   onCustomerSelect: (customer: {
     name: string;
-    email: string;
-    phone: string;
-    address: string;
-    state: string;
-    gstin: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    state?: string;
+    gstin?: string;
   }) => void;
   value?: string;
   disabled?: boolean;
@@ -122,15 +122,9 @@ const CustomerSelector = ({
     setSearchQuery(newValue);
     setIsOpen(true);
 
-    // 🔥 FIX: Always update parent component when user types
-    // This ensures new customer names are captured
+    // Only update name when typing, keep other fields
     onCustomerSelect({
       name: newValue,
-      email: "",
-      phone: "",
-      address: "",
-      state: "",
-      gstin: "",
     });
   };
 

@@ -234,7 +234,18 @@ export const DashboardHeader = memo(() => {
       <div className="relative z-10">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
-            <LogoIcon />
+            {isLoaded && user?.imageUrl ? (
+              <motion.img
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5 }}
+                src={user.imageUrl}
+                alt={user.firstName || "Profile"}
+                className="h-16 w-16 rounded-2xl object-cover shadow-primary border-2 border-white"
+              />
+            ) : (
+              <LogoIcon />
+            )}
 
             <div>
               <motion.h1
@@ -243,7 +254,7 @@ export const DashboardHeader = memo(() => {
                 transition={{ delay: 0.2 }}
                 className="font-heading text-2xl font-bold text-foreground"
               >
-                Tamhan
+                {isLoaded && user?.firstName ? `Hey ${user.firstName} 👋` : "Tamhan"}
               </motion.h1>
               <p className="text-sm text-muted-foreground">Premium Account</p>
             </div>

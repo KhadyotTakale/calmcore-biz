@@ -13,13 +13,33 @@ import {
   CreditCard,
   Package,
   Loader2,
+  FileSpreadsheet,
+  Users,
+  FileText,
+  Receipt,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { getShopInfo } from "@/services/api";
+import {
+  getShopInfo,
+  getItems,
+  getLeads,
+  getBookings,
+  type Item,
+  type Lead,
+  type Booking,
+} from "@/services/api";
 import { logger } from "@/services/logger";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { exportToCSV } from "@/lib/utils";
 
 // Lazy load Razorpay payment component
 const RazorpayPayment = lazy(
@@ -34,6 +54,8 @@ const Settings = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportLoading, setExportLoading] = useState<string | null>(null);
   const [companyInfo, setCompanyInfo] = useState({
     name: "Tamhan",
     email: "admin@tamhn.com",
@@ -101,6 +123,151 @@ const Settings = () => {
 
     loadCompanyInfo();
   }, []);
+
+  const handleExport = async (
+    type: "items" | "customers" | "estimates" | "invoices"
+  ) => {
+    try {
+      setExportLoading(type);
+      let data: any[] = [];
+      let filename = "";
+
+      // Helper to fetch all pages
+      const fetchAllData = async (
+        fetcher: (page: number, perPage: number) => Promise<any>
+      ) => {
+        let allItems: any[] = [];
+        let page = 1;
+        const perPage = 100;
+        let hasMore = true;
+
+        while (hasMore) {
+          const response = await fetcher(page, perPage);
+          const items = response.items || [];
+
+          if (items.length > 0) {
+            allItems = [...allItems, ...items];
+            if (items.length < perPage) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          } else {
+            hasMore = false;
+          }
+
+          // Safety break to prevent infinite loops
+          if (page > 100) hasMore = false;
+        }
+        return allItems;
+      };
+
+      if (type === "items") {
+        const allItems = await fetchAllData((page, perPage) => getItems(page, perPage));
+        data = allItems.map((item) => ({
+          ID: item.id,
+          Name: item.title,
+          Description: item.description,
+          Price: item.price,
+          Unit: item.unit,
+          SKU: item.sku,
+          Currency: item.currency,
+          Created: new Date(item.created_at).toLocaleDateString(),
+        }));
+        filename = "items_export";
+      } else if (type === "customers") {
+        const allLeads = await fetchAllData((page, perPage) => getLeads(page, perPage));
+        data = allLeads.map((lead) => ({
+          Name: `${lead.lead_payload.first_name || ""} ${lead.lead_payload.last_name || ""
+            }`.trim(),
+          Email: lead.lead_payload.email || "",
+          Phone: lead.lead_payload.phone_numbers?.[0]?.number || "",
+          Address: lead.lead_payload.addresses?.[0]?.line1 || "",
+          City: lead.lead_payload.addresses?.[0]?.region || "",
+          Created: new Date(lead.created_at).toLocaleDateString(),
+        }));
+        filename = "customers_export";
+      } else if (type === "estimates" || type === "invoices") {
+        const allBookings = await fetchAllData((page, perPage) => getBookings(page, perPage));
+
+        // Filter and map bookings
+        data = allBookings
+          .map((booking) => {
+            const firstItem = booking._booking_items_of_bookings?.items?.[0];
+            const info = firstItem?.booking_items_info;
+
+            // Check if it matches the requested type
+            const docType = info?.document_type || "estimate"; // Default to estimate if unknown
+            if ((type === "estimates" && docType !== "estimate") ||
+              (type === "invoices" && docType !== "invoice")) {
+              return null;
+            }
+
+            const customerInfo = info?.customer_info || {};
+            const details = type === "estimates" ? info?.estimate_details : info?.invoice_details;
+            const number = details?.estimateNumber || details?.invoiceNumber || "N/A";
+
+            // Calculate final price
+            // Re-implement calculation logic or extract if stored
+            let finalPrice = 0;
+            if (info?.tax_info) {
+              // Calculate items total
+              const items = booking._booking_items_of_bookings?.items || [];
+              const subtotal = items.reduce((sum: number, item: any) => {
+                const qty = item.quantity || 0;
+                const price = parseFloat(item.price?.toString() || "0");
+                return sum + (qty * price);
+              }, 0);
+
+              const discount = info.tax_info.discount || 0;
+              const cgst = info.tax_info.cgst || 0;
+              const sgst = info.tax_info.sgst || 0;
+
+              const discountAmount = (subtotal * discount) / 100;
+              const taxable = subtotal - discountAmount;
+              const taxAmount = (taxable * (cgst + sgst)) / 100;
+              finalPrice = taxable + taxAmount;
+            }
+
+            return {
+              "Name": customerInfo.name || booking._customers?.Full_name || "Unknown",
+              [type === "estimates" ? "Estimate Number" : "Invoice Number"]: number,
+              "Slug": booking.booking_slug,
+              "Address": customerInfo.address || "",
+              "Final Price": finalPrice.toFixed(2)
+            };
+          })
+          .filter((item) => item !== null); // Remove mismatched types
+
+        filename = type === "estimates" ? "estimates_export" : "invoices_export";
+      }
+
+      if (data.length === 0) {
+        toast({
+          title: "No data found",
+          description: `No ${type} found to export.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      exportToCSV(data, filename);
+      toast({
+        title: "Export Successful",
+        description: `Your ${type} have been exported to CSV.`,
+      });
+      setShowExportDialog(false);
+    } catch (error) {
+      logger.error(`Failed to export ${type}`, error);
+      toast({
+        title: "Export Failed",
+        description: "An error occurred while exporting data.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(null);
+    }
+  };
 
   interface SettingsItem {
     icon: typeof User;
@@ -173,9 +340,10 @@ const Settings = () => {
           description: "Password and authentication",
         },
         {
-          icon: Download,
-          label: "Backup",
-          description: "Export and backup data",
+          icon: FileSpreadsheet,
+          label: "Export to Excel",
+          description: "Download Items, Customers, Estimates & Invoices",
+          onClick: () => setShowExportDialog(true),
         },
       ],
     },
@@ -412,6 +580,76 @@ const Settings = () => {
             />
           </Suspense>
         )}
+
+        {/* Export to Excel Dialog */}
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Export Data to Excel</DialogTitle>
+              <DialogDescription>
+                Choose what data you would like to export. Files will be downloaded
+                in CSV format.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <button
+                onClick={() => handleExport("items")}
+                disabled={!!exportLoading}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:bg-muted/50 transition-all disabled:opacity-50"
+              >
+                <div className="rounded-lg bg-pink-100 p-2 text-pink-600">
+                  <Package className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Items</span>
+                {exportLoading === "items" && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </button>
+
+              <button
+                onClick={() => handleExport("customers")}
+                disabled={!!exportLoading}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:bg-muted/50 transition-all disabled:opacity-50"
+              >
+                <div className="rounded-lg bg-purple-100 p-2 text-purple-600">
+                  <Users className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Customers</span>
+                {exportLoading === "customers" && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </button>
+
+              <button
+                onClick={() => handleExport("estimates")}
+                disabled={!!exportLoading}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:bg-muted/50 transition-all disabled:opacity-50"
+              >
+                <div className="rounded-lg bg-blue-100 p-2 text-blue-600">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Estimates</span>
+                {exportLoading === "estimates" && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </button>
+
+              <button
+                onClick={() => handleExport("invoices")}
+                disabled={!!exportLoading}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:bg-muted/50 transition-all disabled:opacity-50"
+              >
+                <div className="rounded-lg bg-green-100 p-2 text-green-600">
+                  <Receipt className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Invoices</span>
+                {exportLoading === "invoices" && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Logout Button */}
         <motion.div
