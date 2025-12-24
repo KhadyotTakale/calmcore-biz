@@ -23,7 +23,6 @@ import {
   Lock,
   Headphones,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import img1 from "../assets/img1.jpeg";
 import img2 from "../assets/img2.jpeg";
 import img3 from "../assets/img3.jpeg";
@@ -145,9 +144,7 @@ const LandingPage = () => {
 
           {/* Mobile Navigation */}
           {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
+            <div
               className="border-t border-border py-4 md:hidden"
             >
               <div className="flex flex-col gap-3">
@@ -170,7 +167,7 @@ const LandingPage = () => {
                   Login / Sign Up
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </nav>
@@ -178,9 +175,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <section className="px-4 pb-20 pt-32 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+          <div
             className="text-center"
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
@@ -212,13 +207,10 @@ const LandingPage = () => {
                 View Pricing
               </a>
             </div>
-          </motion.div>
+          </div>
 
           {/* Hero Image Grid */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+          <div
             className="mt-16"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -264,15 +256,14 @@ const LandingPage = () => {
                 />
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
       <section id="features" className="bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0 }}
+          <div
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="mb-16 text-center"
@@ -283,16 +274,14 @@ const LandingPage = () => {
             <p className="mx-auto max-w-2xl text-muted-foreground">
               Powerful features to streamline your business operations
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
                 className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3">
@@ -304,7 +293,7 @@ const LandingPage = () => {
                 <p className="text-sm text-muted-foreground">
                   {feature.description}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -313,8 +302,7 @@ const LandingPage = () => {
       {/* What's Included Section */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+          <div
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="mx-auto max-w-4xl"
@@ -329,29 +317,26 @@ const LandingPage = () => {
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="grid gap-4 sm:grid-cols-2">
                 {planIncludes.map((item, index) => (
-                  <motion.div
+                  <div
                     key={index}
-                    initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: index * 0.05 }}
                     className="flex items-start gap-3"
                   >
                     <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
                     <span className="text-sm text-foreground">{item}</span>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Pricing & CTA Section - Side by Side */}
       <section id="pricing" className="bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0 }}
+          <div
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="mb-16 text-center"
@@ -362,12 +347,11 @@ const LandingPage = () => {
             <p className="text-muted-foreground">
               One plan with everything you need. No hidden fees.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
             {/* Pricing Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+            <div
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
@@ -408,11 +392,10 @@ const LandingPage = () => {
                   Start with a free trial • Cancel anytime • No contracts
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* CTA Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+            <div
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
@@ -432,7 +415,7 @@ const LandingPage = () => {
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
