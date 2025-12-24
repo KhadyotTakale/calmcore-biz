@@ -172,11 +172,7 @@ const AppRoutes = memo(() => {
   return (
     <Suspense fallback={<FullPageLoader />}>
       <Routes>
-        {/* Public Routes - No authentication required */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/auth/*" element={<Auth />} />
-        <Route path="/estimate-preview" element={<EstimatePreview />} />
-        <Route path="/invoice-preview" element={<InvoicePreview />} />
+        {/* All routes here are protected and have Clerk loaded */}
 
         {/* Protected Routes - Authentication required */}
         <Route
@@ -319,11 +315,38 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-            <Layout>
-              <AppRoutes />
-            </Layout>
-          </ClerkProvider>
+          <Routes>
+            {/* PUBLIC ROUTES - No Clerk loaded */}
+            <Route path="/" element={<LandingPage />} />
+
+            {/* AUTH ROUTES - Clerk needed for SignIn/SignUp */}
+            <Route path="/auth/*" element={
+              <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+                <Auth />
+              </ClerkProvider>
+            } />
+
+            {/* PREVIEW ROUTES - No Clerk needed */}
+            <Route path="/estimate-preview" element={
+              <Suspense fallback={<FullPageLoader />}>
+                <EstimatePreview />
+              </Suspense>
+            } />
+            <Route path="/invoice-preview" element={
+              <Suspense fallback={<FullPageLoader />}>
+                <InvoicePreview />
+              </Suspense>
+            } />
+
+            {/* PROTECTED ROUTES - Clerk loaded only here */}
+            <Route path="/*" element={
+              <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+                <Layout>
+                  <AppRoutes />
+                </Layout>
+              </ClerkProvider>
+            } />
+          </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

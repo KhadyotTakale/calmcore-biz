@@ -221,7 +221,7 @@ const LandingPage = () => {
                   alt="Professional Business Management"
                   className="w-full h-64 rounded-lg object-cover"
                   loading="eager"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   decoding="async"
                   width="400"
                   height="256"
@@ -235,7 +235,7 @@ const LandingPage = () => {
                   alt="Indian Shop Management"
                   className="w-full h-64 rounded-lg object-cover"
                   loading="eager"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   decoding="async"
                   width="400"
                   height="256"
@@ -249,7 +249,7 @@ const LandingPage = () => {
                   alt="Team Collaboration"
                   className="w-full h-64 rounded-lg object-cover"
                   loading="eager"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   decoding="async"
                   width="400"
                   height="256"
@@ -264,8 +264,6 @@ const LandingPage = () => {
       <section id="features" className="bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
             className="mb-16 text-center"
           >
             <h2 className="mb-4 font-heading text-3xl font-bold text-foreground md:text-4xl">
@@ -280,8 +278,6 @@ const LandingPage = () => {
             {features.map((feature, index) => (
               <div
                 key={index}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
                 className="rounded-2xl border border-border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="mb-4 inline-flex rounded-xl bg-primary/10 p-3">
@@ -303,8 +299,6 @@ const LandingPage = () => {
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
             className="mx-auto max-w-4xl"
           >
             <h2 className="mb-4 text-center font-heading text-3xl font-bold text-foreground md:text-4xl">
@@ -319,8 +313,6 @@ const LandingPage = () => {
                 {planIncludes.map((item, index) => (
                   <div
                     key={index}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
                     className="flex items-start gap-3"
                   >
                     <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
@@ -337,8 +329,6 @@ const LandingPage = () => {
       <section id="pricing" className="bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
             className="mb-16 text-center"
           >
             <h2 className="mb-4 font-heading text-3xl font-bold text-foreground md:text-4xl">
@@ -352,8 +342,6 @@ const LandingPage = () => {
           <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
             {/* Pricing Card */}
             <div
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
             >
               <div className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-success/5 p-8 shadow-sm">
                 {/* Popular Badge */}
@@ -396,8 +384,6 @@ const LandingPage = () => {
 
             {/* CTA Card */}
             <div
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
             >
               <div className="rounded-2xl border border-border bg-card p-12 shadow-sm h-full flex flex-col justify-center">
                 <h2 className="mb-6 font-heading text-3xl font-bold text-foreground md:text-4xl">
