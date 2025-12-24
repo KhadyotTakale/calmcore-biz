@@ -31,5 +31,12 @@ export default defineConfig(({ mode }) => ({
     },
     // Use esbuild for minification (faster and included by default)
     minify: 'esbuild',
+    // Inline small CSS files to reduce requests
+    cssCodeSplit: true,
+    assetsInlineLimit: 4096, // Inline assets < 4kb
+  },
+  // CSS optimization
+  css: {
+    devSourcemap: mode === 'development',
   },
 }));
