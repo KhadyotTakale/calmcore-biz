@@ -16,6 +16,7 @@ import {
   CreditCard,
   Users,
   Image,
+  LayoutTemplate,
 } from "lucide-react";
 import { getShopInfo, updateShopInfo } from "@/services/api";
 import { logger } from "@/services/logger";
@@ -42,6 +43,7 @@ const Profile = () => {
       ifsc_code: "",
     },
     signature: "",
+    preferred_template: "modern", // Default to modern template
   });
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -76,6 +78,7 @@ const Profile = () => {
             ifsc_code: settings.bank_details?.ifsc_code || "",
           },
           signature: settings.signature || "",
+          preferred_template: settings.preferred_template || "modern",
         });
 
         if (settings.logo_url) {
@@ -561,6 +564,117 @@ const Profile = () => {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Template Preferences Section */}
+          <div className="mb-8 pb-6 border-b-2 border-border">
+            <div className="mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">
+                Template Preferences
+              </h3>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <div>
+              <label className="mb-3 block text-sm font-semibold text-foreground">
+                Preferred Estimate/Invoice Template
+              </label>
+              <p className="text-sm text-muted-foreground mb-4">
+                Choose the template that will be used for all your estimates and invoices. Customers will see this template when viewing their documents.
+              </p>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                {/* Standard Template */}
+                <button
+                  type="button"
+                  onClick={() => handleInputChange("preferred_template", "standard")}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${formData.preferred_template === "standard"
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border hover:border-primary/50"
+                    }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`rounded-lg p-2 ${formData.preferred_template === "standard"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                      }`}>
+                      <LayoutTemplate className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground mb-1">Standard</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Classic black & white template with clean borders
+                      </p>
+                    </div>
+                  </div>
+                  {formData.preferred_template === "standard" && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Modern Purple Template */}
+                <button
+                  type="button"
+                  onClick={() => handleInputChange("preferred_template", "modern")}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${formData.preferred_template === "modern"
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border hover:border-primary/50"
+                    }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`rounded-lg p-2 ${formData.preferred_template === "modern"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-purple-100 text-purple-600"
+                      }`}>
+                      <LayoutTemplate className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground mb-1">Modern Purple</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Professional purple gradient with modern styling
+                      </p>
+                    </div>
+                  </div>
+                  {formData.preferred_template === "modern" && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Fresh Teal Template */}
+                <button
+                  type="button"
+                  onClick={() => handleInputChange("preferred_template", "teal")}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${formData.preferred_template === "teal"
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border hover:border-primary/50"
+                    }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`rounded-lg p-2 ${formData.preferred_template === "teal"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-teal-100 text-teal-600"
+                      }`}>
+                      <LayoutTemplate className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground mb-1">Fresh Teal</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Fresh teal design with contemporary look
+                      </p>
+                    </div>
+                  </div>
+                  {formData.preferred_template === "teal" && (
+                    <div className="absolute top-2 right-2">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                  )}
+                </button>
               </div>
             </div>
           </div>

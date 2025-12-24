@@ -178,7 +178,7 @@ const ItemSelector = ({
                     <button
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        navigate("/manage-items");
+                        window.open("/manage-items", "_blank");
                       }}
                       className="mt-2 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                     >
@@ -307,7 +307,7 @@ const ItemSelector = ({
                   <button
                     onMouseDown={(e) => {
                       e.preventDefault(); // Prevent input blur
-                      navigate("/manage-items");
+                      window.open("/manage-items", "_blank");
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >

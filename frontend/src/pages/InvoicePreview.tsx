@@ -78,7 +78,7 @@ const InvoicePreview = () => {
   const [shopInfo, setShopInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState('modern');
+  const [selectedTemplate, setSelectedTemplate] = useState('modern'); // Will be set from shop settings
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -120,6 +120,9 @@ const InvoicePreview = () => {
                 gstin: shopInfoData.shops_settings.gstin || '',
                 state: shopInfoData.shops_settings.state || ''
               });
+              // Set the vendor's preferred template
+              const preferredTemplate = shopInfoData.shops_settings.preferred_template || 'modern';
+              setSelectedTemplate(preferredTemplate);
             }
           } catch (shopError) {
             logger.error('Failed to fetch shop info', shopError);
@@ -374,18 +377,6 @@ const InvoicePreview = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="fixed top-4 right-4 flex flex-col md:flex-row gap-2 print:hidden z-50">
-        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow mr-2">
-          <LayoutTemplate className="h-4 w-4 text-gray-600" />
-          <select
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="text-sm border-none bg-transparent focus:ring-0 cursor-pointer outline-none"
-          >
-            <option value="standard">Standard Template</option>
-            <option value="modern">Modern Purple</option>
-            <option value="teal">Fresh Teal (New)</option>
-          </select>
-        </div>
         <button onClick={handlePrint} className="button-style px-4 py-2 bg-gray-100 rounded shadow text-sm flex gap-2 items-center"><Printer className="h-4 w-4" /> Print</button>
         <button onClick={handleDownloadPDF} className="button-style px-4 py-2 bg-green-600 text-white rounded shadow text-sm flex gap-2 items-center"><Download className="h-4 w-4" /> PDF</button>
         <button onClick={handleClose} className="button-style px-4 py-2 bg-red-100 text-red-700 rounded shadow text-sm flex gap-2 items-center"><X className="h-4 w-4" /></button>

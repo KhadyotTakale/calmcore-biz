@@ -399,6 +399,7 @@ export interface ShopSettings {
     ifsc_code: string;
   };
   signature: string;
+  preferred_template?: string; // 'standard' | 'modern' | 'teal'
 }
 
 export interface ShopInfoPayload {

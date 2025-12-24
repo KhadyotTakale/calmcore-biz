@@ -378,13 +378,12 @@ const Pagination = memo(
                 key={index}
                 onClick={() => typeof page === "number" && onPageChange(page)}
                 disabled={page === "..." || page === currentPage || loading}
-                className={`min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-colors ${
-                  page === currentPage
-                    ? "bg-primary text-primary-foreground"
-                    : page === "..."
+                className={`min-w-[40px] h-10 px-3 rounded-lg font-medium text-sm transition-colors ${page === currentPage
+                  ? "bg-primary text-primary-foreground"
+                  : page === "..."
                     ? "cursor-default text-muted-foreground"
                     : "border border-border bg-background hover:bg-accent"
-                } disabled:cursor-not-allowed`}
+                  } disabled:cursor-not-allowed`}
               >
                 {page}
               </button>
@@ -447,13 +446,11 @@ const ManageItems = () => {
   });
 
   const currencies: Currency[] = [
+    { code: "INR", symbol: "₹", name: "Indian Rupee" },
     { code: "USD", symbol: "$", name: "US Dollar" },
     { code: "EUR", symbol: "€", name: "Euro" },
     { code: "GBP", symbol: "£", name: "British Pound" },
-    { code: "INR", symbol: "₹", name: "Indian Rupee" },
-    { code: "JPY", symbol: "¥", name: "Japanese Yen" },
-    { code: "AUD", symbol: "A$", name: "Australian Dollar" },
-    { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
+
   ];
 
   const itemTypes: string[] = ["Event", "Product", "Service"];

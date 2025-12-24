@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -24,6 +24,9 @@ import {
   Headphones,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import img1 from "../assets/img1.jpeg";
+import img2 from "../assets/img2.jpeg";
+import img3 from "../assets/img3.jpeg";
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -186,11 +189,11 @@ const LandingPage = () => {
             </div>
             <h1 className="mb-6 font-heading text-4xl font-bold text-foreground md:text-6xl lg:text-7xl">
               Professional Estimates &<br />
-              <span className="bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+              <span style={{ color: 'hsl(100, 52%, 35%)' }}>
                 Invoices in Minutes
               </span>
             </h1>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
+            <p className="mx-auto mb-8 max-w-2xl text-lg text-foreground">
               Create GST-compliant estimates and invoices with ease. Manage your
               business professionally with our all-in-one solution.
             </p>
@@ -211,25 +214,45 @@ const LandingPage = () => {
             </div>
           </motion.div>
 
-          {/* Hero Image/Mockup */}
+          {/* Hero Image Grid */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mt-16 rounded-2xl border border-border bg-card p-4 shadow-2xl"
+            className="mt-16"
           >
-            <img
-              src="https://plus.unsplash.com/premium_photo-1724579095984-c9f71dea7b7d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2069"
-              alt="Indian Business Owner"
-              className="w-full rounded-lg object-cover"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Image 1 */}
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-lg hover:shadow-xl transition-shadow">
+                <img
+                  src={img1}
+                  alt="Professional Business Management"
+                  className="w-full h-64 rounded-lg object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
 
-            />
-            <div className="hidden aspect-video items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-success/10">
-              <div className="text-center">
-                <BarChart3 className="mx-auto mb-4 h-20 w-20 text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Professional Dashboard
-                </p>
+              {/* Image 2 */}
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-lg hover:shadow-xl transition-shadow">
+                <img
+                  src={img2}
+                  alt="Indian Shop Management"
+                  className="w-full h-64 rounded-lg object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+
+              {/* Image 3 */}
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-lg hover:shadow-xl transition-shadow">
+                <img
+                  src={img3}
+                  alt="Team Collaboration"
+                  className="w-full h-64 rounded-lg object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
               </div>
             </div>
           </motion.div>
@@ -281,61 +304,41 @@ const LandingPage = () => {
       {/* What's Included Section */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            {/* Image */}
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="order-2 lg:order-1"
-            >
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
-                <img
-                  src="https://plus.unsplash.com/premium_photo-1679811674370-7761190a9db0?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=774"
-                  alt="Indian Shop Management"
-                  className="w-full rounded-lg object-cover"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mx-auto max-w-4xl"
+          >
+            <h2 className="mb-4 text-center font-heading text-3xl font-bold text-foreground md:text-4xl">
+              What's Included
+            </h2>
+            <p className="mb-8 text-center text-muted-foreground">
+              All the tools you need in one comprehensive package
+            </p>
 
-                />
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {planIncludes.map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex items-start gap-3"
+                  >
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
+                    <span className="text-sm text-foreground">{item}</span>
+                  </motion.div>
+                ))}
               </div>
-            </motion.div>
-
-            {/* Content */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="order-1 lg:order-2"
-            >
-              <h2 className="mb-4 font-heading text-3xl font-bold text-foreground md:text-4xl">
-                What's Included
-              </h2>
-              <p className="mb-8 text-muted-foreground">
-                All the tools you need in one comprehensive package
-              </p>
-
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {planIncludes.map((item, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-start gap-3"
-                    >
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
-                      <span className="text-sm text-foreground">{item}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing & CTA Section - Side by Side */}
       <section id="pricing" className="bg-muted/30 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <motion.div
@@ -352,64 +355,59 @@ const LandingPage = () => {
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="mx-auto max-w-2xl"
-          >
-            <div className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-success/5 p-8 shadow-sm">
-              {/* Popular Badge */}
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <span className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm">
-                  <Zap className="h-4 w-4" />
-                  Recommended
-                </span>
-              </div>
-
-              <div className="mb-8 text-center">
-                <h3 className="mb-2 font-heading text-2xl font-bold text-foreground">
-                  Premium Plan
-                </h3>
-                <p className="mb-6 text-muted-foreground">
-                  Everything you need to grow your business
-                </p>
-                <div className="flex items-baseline justify-center gap-2">
-                  <span className="font-mono text-5xl font-bold text-primary">
-                    ₹2000
-                  </span>
-                  <span className="text-muted-foreground">/month</span>
-                </div>
-              </div>
-
-              {/* CTA Button */}
-              <button
-                onClick={() => navigate("/auth")}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
-              >
-                Get Started Now
-                <ArrowRight className="h-5 w-5" />
-              </button>
-
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                Start with a free trial • Cancel anytime • No contracts
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            {/* Content */}
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+            {/* Pricing Card */}
             <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <div className="rounded-2xl border border-border bg-card p-12 shadow-sm">
+              <div className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-success/5 p-8 shadow-sm">
+                {/* Popular Badge */}
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm">
+                    <Zap className="h-4 w-4" />
+                    Recommended
+                  </span>
+                </div>
+
+                <div className="mb-8 text-center">
+                  <h3 className="mb-2 font-heading text-2xl font-bold text-foreground">
+                    Premium Plan
+                  </h3>
+                  <p className="mb-6 text-muted-foreground">
+                    Everything you need to grow your business
+                  </p>
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="font-mono text-5xl font-bold text-primary">
+                      ₹2000
+                    </span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <button
+                  onClick={() => navigate("/auth")}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
+                >
+                  Get Started Now
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Start with a free trial • Cancel anytime • No contracts
+                </p>
+              </div>
+            </motion.div>
+
+            {/* CTA Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+            >
+              <div className="rounded-2xl border border-border bg-card p-12 shadow-sm h-full flex flex-col justify-center">
                 <h2 className="mb-6 font-heading text-3xl font-bold text-foreground md:text-4xl">
                   Ready to Get Started?
                 </h2>
@@ -419,27 +417,11 @@ const LandingPage = () => {
                 </p>
                 <button
                   onClick={() => navigate("/auth")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-xl"
                 >
                   Start Your Free Trial
                   <ArrowRight className="h-5 w-5" />
                 </button>
-              </div>
-            </motion.div>
-
-            {/* Image */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
-                <img
-                  src="https://plus.unsplash.com/premium_photo-1679852311419-0c1ce839a4e9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=2071"
-                  alt="Indian Team Collaboration"
-                  className="w-full rounded-lg object-cover"
-
-                />
               </div>
             </motion.div>
           </div>
@@ -563,4 +545,4 @@ const LandingPage = () => {
   );
 };
 
-export default LandingPage;
+export default React.memo(LandingPage);

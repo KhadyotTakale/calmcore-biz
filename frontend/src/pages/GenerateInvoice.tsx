@@ -63,9 +63,22 @@ const GenerateInvoice = () => {
   const [invoiceCreated, setInvoiceCreated] = useState(false);
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(true);
   const [validationErrors, setValidationErrors] = useState([]);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() => {
+    // Initialize from localStorage to preserve step on refresh
+    try {
+      const savedData = localStorage.getItem("invoiceFormData");
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        return parsed.currentStep || 1;
+      }
+    } catch (error) {
+      logger.error("Failed to load currentStep from localStorage", error);
+    }
+    return 1;
+  });
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [shopName, setShopName] = useState("Your Business");
+  const [isLoaded, setIsLoaded] = useState(false); // Flag to prevent saving before loading
   const { toast } = useToast();
 
   const totalSteps = 4;
@@ -116,6 +129,60 @@ const GenerateInvoice = () => {
 
     fetchShopInfo();
   }, []);
+
+  // Load saved form data from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem("invoiceFormData");
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        if (parsed.customerInfo) setCustomerInfo(parsed.customerInfo);
+        if (parsed.items) setItems(parsed.items);
+        if (parsed.invoiceDetails) {
+          setInvoiceDetails(prev => ({
+            ...prev,
+            notes: parsed.invoiceDetails.notes || "",
+            date: parsed.invoiceDetails.date || prev.date,
+            dueDate: parsed.invoiceDetails.dueDate || prev.dueDate,
+          }));
+        }
+        if (parsed.discount !== undefined) setDiscount(parsed.discount);
+        if (parsed.cgst !== undefined) setCgst(parsed.cgst);
+        if (parsed.sgst !== undefined) setSgst(parsed.sgst);
+        if (parsed.currentStep !== undefined) setCurrentStep(parsed.currentStep);
+      }
+    } catch (error) {
+      logger.error("Failed to load saved form data", error);
+    } finally {
+      // Mark as loaded to allow saving
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save form data to localStorage whenever it changes (only after initial load)
+  useEffect(() => {
+    if (!isLoaded) return; // Don't save until we've loaded
+
+    try {
+      const dataToSave = {
+        customerInfo,
+        items,
+        invoiceDetails: {
+          notes: invoiceDetails.notes,
+          date: invoiceDetails.date,
+          dueDate: invoiceDetails.dueDate,
+        },
+        discount,
+        cgst,
+        sgst,
+        currentStep,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem("invoiceFormData", JSON.stringify(dataToSave));
+    } catch (error) {
+      logger.error("Failed to save form data", error);
+    }
+  }, [isLoaded, customerInfo, items, invoiceDetails.notes, invoiceDetails.date, invoiceDetails.dueDate, discount, cgst, sgst, currentStep]);
 
   // ============================================================================
   // MEMOIZED CALCULATIONS - Only recalculate when dependencies change
@@ -708,8 +775,7 @@ const GenerateInvoice = () => {
                     <label className="mb-2 block text-sm font-medium text-foreground">
                       State
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={customerInfo.state}
                       onChange={(e) =>
                         setCustomerInfo({
@@ -717,9 +783,46 @@ const GenerateInvoice = () => {
                           state: e.target.value,
                         })
                       }
-                      placeholder="Maharashtra"
-                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-                    />
+                      className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                    >
+                      <option value="">Select State</option>
+                      <option value="Andhra Pradesh">Andhra Pradesh</option>
+                      <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                      <option value="Assam">Assam</option>
+                      <option value="Bihar">Bihar</option>
+                      <option value="Chhattisgarh">Chhattisgarh</option>
+                      <option value="Goa">Goa</option>
+                      <option value="Gujarat">Gujarat</option>
+                      <option value="Haryana">Haryana</option>
+                      <option value="Himachal Pradesh">Himachal Pradesh</option>
+                      <option value="Jharkhand">Jharkhand</option>
+                      <option value="Karnataka">Karnataka</option>
+                      <option value="Kerala">Kerala</option>
+                      <option value="Madhya Pradesh">Madhya Pradesh</option>
+                      <option value="Maharashtra">Maharashtra</option>
+                      <option value="Manipur">Manipur</option>
+                      <option value="Meghalaya">Meghalaya</option>
+                      <option value="Mizoram">Mizoram</option>
+                      <option value="Nagaland">Nagaland</option>
+                      <option value="Odisha">Odisha</option>
+                      <option value="Punjab">Punjab</option>
+                      <option value="Rajasthan">Rajasthan</option>
+                      <option value="Sikkim">Sikkim</option>
+                      <option value="Tamil Nadu">Tamil Nadu</option>
+                      <option value="Telangana">Telangana</option>
+                      <option value="Tripura">Tripura</option>
+                      <option value="Uttar Pradesh">Uttar Pradesh</option>
+                      <option value="Uttarakhand">Uttarakhand</option>
+                      <option value="West Bengal">West Bengal</option>
+                      <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                      <option value="Chandigarh">Chandigarh</option>
+                      <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                      <option value="Delhi">Delhi</option>
+                      <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                      <option value="Ladakh">Ladakh</option>
+                      <option value="Lakshadweep">Lakshadweep</option>
+                      <option value="Puducherry">Puducherry</option>
+                    </select>
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-medium text-foreground">

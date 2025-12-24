@@ -94,7 +94,7 @@ const EstimatePreview = () => {
   const [shopInfo, setShopInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTemplate, setSelectedTemplate] = useState('modern'); // Default to modern for demo
+  const [selectedTemplate, setSelectedTemplate] = useState('modern'); // Will be set from shop settings
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -144,6 +144,9 @@ const EstimatePreview = () => {
                 gstin: shopInfoData.shops_settings.gstin || '',
                 state: shopInfoData.shops_settings.state || ''
               });
+              // Set the vendor's preferred template
+              const preferredTemplate = shopInfoData.shops_settings.preferred_template || 'modern';
+              setSelectedTemplate(preferredTemplate);
               shopData = shopInfoData;
             }
           } catch (shopError) {
@@ -639,21 +642,6 @@ const EstimatePreview = () => {
     <div className="min-h-screen bg-gray-100">
       {/* Action Buttons - Hidden when printing */}
       <div className="fixed top-4 right-4 flex flex-col md:flex-row gap-2 print:hidden z-50">
-
-        {/* Template Selector Tool */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow mr-2">
-          <LayoutTemplate className="h-4 w-4 text-gray-600" />
-          <select
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="text-sm border-none bg-transparent focus:ring-0 cursor-pointer outline-none"
-          >
-            <option value="standard">Standard Template</option>
-            <option value="modern">Modern Purple</option>
-            <option value="teal">Fresh Teal (New)</option>
-          </select>
-        </div>
-
         <button
           onClick={handlePrint}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg shadow transition-colors text-sm"
