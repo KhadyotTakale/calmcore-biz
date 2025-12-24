@@ -228,8 +228,11 @@ const LandingPage = () => {
                   src={img1}
                   alt="Professional Business Management"
                   className="w-full h-64 rounded-lg object-cover"
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   decoding="async"
+                  width="400"
+                  height="256"
                 />
               </div>
 
@@ -239,8 +242,11 @@ const LandingPage = () => {
                   src={img2}
                   alt="Indian Shop Management"
                   className="w-full h-64 rounded-lg object-cover"
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   decoding="async"
+                  width="400"
+                  height="256"
                 />
               </div>
 
@@ -250,8 +256,11 @@ const LandingPage = () => {
                   src={img3}
                   alt="Team Collaboration"
                   className="w-full h-64 rounded-lg object-cover"
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   decoding="async"
+                  width="400"
+                  height="256"
                 />
               </div>
             </div>
