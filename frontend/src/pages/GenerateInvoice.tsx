@@ -6,6 +6,7 @@ import {
   Download,
   Send,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import ItemSelector from "@/components/estimate/ItemSelector";
@@ -685,9 +686,29 @@ const GenerateInvoice = () => {
                 transition={{ delay: 0.2 }}
                 className="rounded-2xl border border-border bg-card p-6 shadow-sm"
               >
-                <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">
-                  Customer Information
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-heading text-lg font-semibold text-foreground">
+                    Customer Information
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerInfo({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        countryCode: '+91',
+                        address: '',
+                        state: '',
+                        gstin: '',
+                      });
+                    }}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-all hover:bg-muted hover:border-primary/30"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear Info
+                  </button>
+                </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-sm font-medium text-foreground">
@@ -999,7 +1020,7 @@ const GenerateInvoice = () => {
                       notes: e.target.value,
                     })
                   }
-                  placeholder="Add any additional notes or payment terms..."
+                  placeholder="Thank you for your business!"
                   rows={4}
                   className="w-full rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                 />

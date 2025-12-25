@@ -50,6 +50,85 @@ class RequestDeduplicator {
 const deduplicator = new RequestDeduplicator();
 
 // ============================================================================
+// IN-MEMORY CACHE LAYER (10-minute TTL)
+// ============================================================================
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number; // Time to live in milliseconds
+}
+
+class CacheManager {
+  private cache = new Map<string, CacheEntry<any>>();
+  private defaultTTL = 10 * 60 * 1000; // 10 minutes
+
+  set<T>(key: string, data: T, ttl: number = this.defaultTTL): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+
+    if (!entry) return null;
+
+    // Check if expired
+    const age = Date.now() - entry.timestamp;
+    if (age > entry.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data as T;
+  }
+
+  has(key: string): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+
+    // Check if expired
+    const age = Date.now() - entry.timestamp;
+    if (age > entry.ttl) {
+      this.cache.delete(key);
+      return false;
+    }
+
+    return true;
+  }
+
+  invalidate(key: string): void {
+    this.cache.delete(key);
+  }
+
+  invalidatePattern(pattern: string): void {
+    const keys = Array.from(this.cache.keys());
+    keys.forEach(key => {
+      if (key.includes(pattern)) {
+        this.cache.delete(key);
+      }
+    });
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  // Get cache stats for debugging
+  getStats() {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys()),
+    };
+  }
+}
+
+export const cacheManager = new CacheManager();
+
+// ============================================================================
 // AUTHENTICATION MANAGER
 // ============================================================================
 
@@ -905,18 +984,32 @@ export async function getItems(
   page = 1,
   perPage = 25
 ): Promise<PaginatedResponse<Item>> {
-  return apiFetch<PaginatedResponse<Item>>(
+  const cacheKey = `items_${page}_${perPage}`;
+
+  // Check cache first
+  const cached = cacheManager.get<PaginatedResponse<Item>>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from API
+  const result = await apiFetch<PaginatedResponse<Item>>(
     `/items_all?item_type=Product&external=${JSON.stringify({ page, perPage })}`,
     {},
     true,
     true
   );
+
+  // Store in cache
+  cacheManager.set(cacheKey, result);
+
+  return result;
 }
 
 export async function createItem(
   data: CreateItemRequest
 ): Promise<ItemResponse> {
-  return apiFetch<ItemResponse>(
+  const result = await apiFetch<ItemResponse>(
     "/items",
     {
       method: "POST",
@@ -925,13 +1018,19 @@ export async function createItem(
     true,
     true
   );
+
+  // Invalidate items cache so new item appears immediately
+  cacheManager.invalidatePattern('items');
+  cacheManager.invalidate('all_items_simple');
+
+  return result;
 }
 
 export async function updateItem(
   itemId: number,
   data: Partial<CreateItemRequest>
 ): Promise<ItemResponse> {
-  return apiFetch<ItemResponse>(
+  const result = await apiFetch<ItemResponse>(
     `/items/${itemId}`,
     {
       method: "PATCH",
@@ -940,10 +1039,16 @@ export async function updateItem(
     true,
     true
   );
+
+  // Invalidate items cache so updated item appears immediately
+  cacheManager.invalidatePattern('items');
+  cacheManager.invalidate('all_items_simple');
+
+  return result;
 }
 
 export async function deleteItem(itemId: number): Promise<ItemResponse> {
-  return apiFetch<ItemResponse>(
+  const result = await apiFetch<ItemResponse>(
     `/items/${itemId}`,
     {
       method: "PATCH",
@@ -952,6 +1057,12 @@ export async function deleteItem(itemId: number): Promise<ItemResponse> {
     true,
     true
   );
+
+  // Invalidate items cache so disabled item reflects immediately
+  cacheManager.invalidatePattern('items');
+  cacheManager.invalidate('all_items_simple');
+
+  return result;
 }
 
 export async function restoreItem(itemId: number): Promise<ItemResponse> {
@@ -969,12 +1080,26 @@ export async function restoreItem(itemId: number): Promise<ItemResponse> {
 export async function getAllItemsSimple(): Promise<
   PaginatedResponse<ItemResponse>
 > {
-  return apiFetch<PaginatedResponse<ItemResponse>>(
+  const cacheKey = 'all_items_simple';
+
+  // Check cache first
+  const cached = cacheManager.get<PaginatedResponse<ItemResponse>>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from API
+  const result = await apiFetch<PaginatedResponse<ItemResponse>>(
     "/items_all",
     {},
     true,
     true
   );
+
+  // Store in cache
+  cacheManager.set(cacheKey, result);
+
+  return result;
 }
 
 // ============================================================================
@@ -982,13 +1107,27 @@ export async function getAllItemsSimple(): Promise<
 // ============================================================================
 
 export async function getCustomer(): Promise<CustomerResponse> {
-  return apiFetch<CustomerResponse>("/customer", {}, false, true);
+  const cacheKey = 'customers_all';
+
+  // Check cache first
+  const cached = cacheManager.get<CustomerResponse>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from API
+  const result = await apiFetch<CustomerResponse>("/customer", {}, false, true);
+
+  // Store in cache
+  cacheManager.set(cacheKey, result);
+
+  return result;
 }
 
 export async function createCustomer(
   data: CreateCustomerRequest
 ): Promise<Customer> {
-  return apiFetch<Customer>(
+  const result = await apiFetch<Customer>(
     "/customer",
     {
       method: "POST",
@@ -997,6 +1136,11 @@ export async function createCustomer(
     false,
     true
   );
+
+  // Invalidate customers cache so new customer appears immediately
+  cacheManager.invalidate('customers_all');
+
+  return result;
 }
 
 export async function getCustomerById(customerId: string): Promise<Customer> {
@@ -1007,7 +1151,7 @@ export async function updateCustomer(
   customerId: string,
   data: Partial<CreateCustomerRequest>
 ): Promise<Customer> {
-  return apiFetch<Customer>(
+  const result = await apiFetch<Customer>(
     `/customer/${customerId}`,
     {
       method: "PUT",
@@ -1016,6 +1160,11 @@ export async function updateCustomer(
     false,
     true
   );
+
+  // Invalidate customers cache so updated customer appears immediately
+  cacheManager.invalidate('customers_all');
+
+  return result;
 }
 
 export async function linkCustomerToBooking(
@@ -1069,16 +1218,30 @@ export async function getBookings(
   page = 1,
   perPage = 25
 ): Promise<PaginatedResponse<Booking>> {
-  return apiFetch<PaginatedResponse<Booking>>(
+  const cacheKey = `bookings_${page}_${perPage}`;
+
+  // Check cache first
+  const cached = cacheManager.get<PaginatedResponse<Booking>>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from API
+  const result = await apiFetch<PaginatedResponse<Booking>>(
     `/bookings?external=${JSON.stringify({ page, perPage })}`,
     {},
     true,
     true
   );
+
+  // Store in cache
+  cacheManager.set(cacheKey, result);
+
+  return result;
 }
 
 export const convertToInvoice = async (bookingId: number): Promise<any> => {
-  return apiFetch(
+  const result = await apiFetch(
     `/booking/${bookingId}`,
     {
       method: "PATCH",
@@ -1091,6 +1254,12 @@ export const convertToInvoice = async (bookingId: number): Promise<any> => {
     false,
     true // Use customer auth
   );
+
+  // Invalidate bookings cache so converted invoice appears in invoices list
+  cacheManager.invalidatePattern('bookings');
+  cacheManager.invalidatePattern('invoices');
+
+  return result;
 };
 
 export const getBooking = async (
@@ -1100,7 +1269,7 @@ export const getBooking = async (
 }
 
 export async function createBooking(): Promise<CreateBookingResponse> {
-  return apiFetch<CreateBookingResponse>(
+  const result = await apiFetch<CreateBookingResponse>(
     "/booking",
     {
       method: "POST",
@@ -1109,6 +1278,11 @@ export async function createBooking(): Promise<CreateBookingResponse> {
     false,
     true
   );
+
+  // Invalidate bookings cache so new booking appears immediately
+  cacheManager.invalidatePattern('bookings');
+
+  return result;
 }
 
 export async function addBookingItem(
@@ -1342,7 +1516,21 @@ export async function updateShop(
 }
 
 export async function getShopInfo(): Promise<ShopInfoPayload> {
-  return apiFetch<ShopInfoPayload>("/shop_info", {}, true, true);
+  const cacheKey = 'shop_info';
+
+  // Check cache first (30 min TTL for shop info as it rarely changes)
+  const cached = cacheManager.get<ShopInfoPayload>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from API
+  const result = await apiFetch<ShopInfoPayload>("/shop_info", {}, true, true);
+
+  // Store in cache with longer TTL (30 minutes)
+  cacheManager.set(cacheKey, result, 30 * 60 * 1000);
+
+  return result;
 }
 
 export async function updateShopInfo(

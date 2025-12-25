@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import {
   ClerkProvider,
@@ -16,6 +16,7 @@ import {
   useContext,
   memo,
   useMemo,
+  useEffect,
 } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { DesktopNav } from "@/components/DesktopNav";
@@ -26,6 +27,7 @@ import { env } from "@/config/env";
 import { useAuthInitialization } from "@/hooks/useAuthInitialization";
 import { useNavVisibility } from "@/hooks/useNavVisibility";
 import { createOptimizedQueryClient } from "@/hooks/useOptimizedQuery";
+import { usePrefetchCommonData } from "@/hooks/usePrefetch";
 
 // ============================================================================
 // LAZY LOADED PAGES - Loads only when needed
@@ -111,6 +113,48 @@ export const useAuthState = () => useContext(AuthContext);
 
 const AuthStateManager = memo(({ children }: { children: React.ReactNode }) => {
   const authState = useAuthInitialization();
+  const queryClient = useQueryClient();
+
+  // Only prefetch when user is authenticated and initialization is complete
+  // This prevents infinite loops and unnecessary prefetching
+  useEffect(() => {
+    if (!authState.isInitializing && authState.hasOwnShop !== null) {
+      // Wait 2 seconds after auth completes, then prefetch common data
+      const timer = setTimeout(() => {
+        // Prefetch bookings
+        queryClient.prefetchQuery({
+          queryKey: ['bookings', 1, 10],
+          queryFn: async () => {
+            const { getBookings } = await import('@/services/api');
+            return getBookings(1, 10);
+          },
+          staleTime: 10 * 60 * 1000,
+        });
+
+        // Prefetch items
+        queryClient.prefetchQuery({
+          queryKey: ['items'],
+          queryFn: async () => {
+            const { getItems } = await import('@/services/api');
+            return getItems();
+          },
+          staleTime: 10 * 60 * 1000,
+        });
+
+        // Prefetch shop info
+        queryClient.prefetchQuery({
+          queryKey: ['shopInfo'],
+          queryFn: async () => {
+            const { getShopInfo } = await import('@/services/api');
+            return getShopInfo();
+          },
+          staleTime: 30 * 60 * 1000,
+        });
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [authState.isInitializing, authState.hasOwnShop, queryClient]);
 
   const contextValue = useMemo(
     () => ({
