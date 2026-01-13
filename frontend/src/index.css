@@ -9,28 +9,28 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Brand Colors - Sophisticated & Calming */
-    --primary: 100 52% 63%; /* Sage Green #9CA986 */
+    --primary: 100 52% 45%; /* Sage Green - darkened for better visibility */
     --primary-foreground: 0 0% 100%;
-    --primary-light: 88 28% 70%; /* Lighter sage */
+    --primary-light: 88 28% 55%; /* Lighter sage */
 
-    --secondary: 261 54% 74%; /* Soft Lavender #B4A7D6 */
+    --secondary: 261 54% 55%; /* Soft Lavender - darkened for better visibility */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 12 100% 82%; /* Warm Peach #FFB4A2 */
-    --accent-foreground: 195 11% 19%;
+    --accent: 12 100% 65%; /* Warm Peach - darkened */
+    --accent-foreground: 0 0% 100%;
 
-    --info: 185 83% 76%; /* Sky Blue #A8DADC */
-    --info-foreground: 195 11% 19%;
+    --info: 185 83% 50%; /* Sky Blue - darkened */
+    --info-foreground: 0 0% 100%;
 
     /* Success, Warning, Error */
-    --success: 165 43% 72%; /* Mint Fresh #98D8C8 */
-    --success-foreground: 195 11% 19%;
+    --success: 165 50% 45%; /* Mint Fresh - darkened */
+    --success-foreground: 0 0% 100%;
 
-    --warning: 45 86% 75%; /* Golden Hour #F6D186 */
+    --warning: 45 90% 50%; /* Golden Hour - darkened */
     --warning-foreground: 195 11% 19%;
 
-    --destructive: 339 77% 84%; /* Coral Pink #F7B5CA */
-    --destructive-foreground: 195 11% 19%;
+    --destructive: 0 70% 55%; /* Red - more visible for destructive actions */
+    --destructive-foreground: 0 0% 100%;
 
     /* Base Colors */
     --background: 60 33% 98%; /* Cream White #FAF9F6 */
@@ -79,9 +79,9 @@ All colors MUST be HSL.
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16);
 
-    --shadow-primary: 0 8px 24px hsla(88, 22%, 63%, 0.25);
-    --shadow-secondary: 0 8px 24px hsla(261, 34%, 74%, 0.25);
-    --shadow-accent: 0 8px 24px hsla(12, 100%, 82%, 0.25);
+    --shadow-primary: 0 8px 24px hsla(100, 52%, 45%, 0.35);
+    --shadow-secondary: 0 8px 24px hsla(261, 54%, 55%, 0.35);
+    --shadow-accent: 0 8px 24px hsla(12, 100%, 65%, 0.35);
   }
 
   .dark {
@@ -219,5 +219,44 @@ All colors MUST be HSL.
 
   .hover-lift:active {
     transform: translateY(-2px) scale(0.98);
+  }
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    margin: 10mm;
+    size: A4;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: white !important;
+  }
+
+  /* Hide non-printable elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Prevent extra blank pages */
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Remove any forced breaks */
+  * {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ensure root container doesn't force height */
+  #root {
+    height: auto !important;
+    min-height: 0 !important;
   }
 }

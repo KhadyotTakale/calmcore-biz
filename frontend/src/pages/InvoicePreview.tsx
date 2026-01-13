@@ -318,8 +318,8 @@ const InvoicePreview = () => {
         </button>
       </div>
 
-      {/* PAGE 1 */}
-      <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-white p-12 mb-8 print:mb-0 print:page-break-after-always">
+      {/* Invoice Content */}
+      <div className="max-w-[210mm] mx-auto bg-white p-12 mb-8 print:mb-0">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -498,82 +498,6 @@ const InvoicePreview = () => {
         </div>
       </div>
 
-      {/* PAGE 2 */}
-      <div className="max-w-[210mm] min-h-[297mm] mx-auto bg-white p-12 print:page-break-before-always">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <img
-              src="https://mrudgandh.co.in/wp-content/uploads/2021/11/Mrudugandh_Marathi-Logo_4-300x133.jpg"
-              alt="Mrudgandh Logo"
-              className="h-14 mb-3"
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
-            />
-            <div className="text-xs text-gray-700 space-y-0.5">
-              <p>
-                <strong>Address:</strong> Kodre Farm, Vadgaon Khurd,
-              </p>
-              <p>Behind Rajyog Society, Pune, MH 411068</p>
-              <p>
-                <strong>Email:</strong> teammrudgandh@gmail.com
-              </p>
-              <p>
-                <strong>Phone:</strong> +91 9371711378 / +91 9850567505
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <h1 className="text-3xl font-bold text-green-700 mb-2">INVOICE</h1>
-            <div className="text-xs text-gray-600 space-y-0.5">
-              <p>
-                <strong>Invoice #:</strong>
-                {invoiceDetails.invoiceNumber}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {new Date(invoiceDetails.date).toLocaleDateString("en-IN")}
-              </p>
-              <p>
-                <strong>Due Date:</strong>
-                {new Date(invoiceDetails.dueDate).toLocaleDateString("en-IN")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bank Details */}
-        <div className="mb-8">
-          <h2 className="font-bold text-base mb-4">
-            Bank Details for NEFT/RTGS
-          </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-            <div>
-              <p>Beneficiary Name -</p>
-              <p>Name of the Bank -</p>
-              <p>
-                <strong>Pune</strong>
-              </p>
-              <p>IFSC Code -</p>
-            </div>
-            <div>
-              <p>Account No.-</p>
-              <p>Branch -</p>
-            </div>
-          </div>
-        </div>
-
-        {/* For Customer */}
-        <div className="mb-16">
-          <p className="text-sm mb-8">For {customerInfo.name}</p>
-        </div>
-
-        {/* Signature */}
-        <div className="text-left mt-32">
-          <p className="text-sm">Signature</p>
-        </div>
-      </div>
     </div>
   );
 };
