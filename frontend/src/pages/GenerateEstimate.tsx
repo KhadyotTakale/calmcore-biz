@@ -377,7 +377,7 @@ const GenerateEstimate = () => {
         gstin,
       };
 
-      const booking = await createBooking();
+      const booking = await createBooking("estimate");
 
       const itemErrors = [];
 

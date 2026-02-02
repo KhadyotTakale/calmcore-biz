@@ -613,6 +613,17 @@ async function performFetch<T>(
     }
   }
 
+  // DEBUG: Log the request details
+  if (endpoint === "/bookings" && options.method === "POST") {
+    console.log("🔍 DEBUG createBooking request:", {
+      fullUrl,
+      hasClerkUserId: !!clerkUserId,
+      clerkUserId,
+      hasCustomerToken: !!authManager.getCustomerAuthToken(),
+      headers: Object.keys(headers),
+    });
+  }
+
   try {
     const response = await fetch(fullUrl, {
       ...options,
@@ -1172,12 +1183,12 @@ export async function linkCustomerToBooking(
   customerId: string
 ): Promise<Booking> {
   return apiFetch<Booking>(
-    `/booking/${bookingId}/customer`,
+    `/bookings/${bookingId}/customer`,
     {
       method: "PUT",
       body: JSON.stringify({ customers_id: customerId }),
     },
-    false,
+    true,
     true
   );
 }
@@ -1242,7 +1253,7 @@ export async function getBookings(
 
 export const convertToInvoice = async (bookingId: number): Promise<any> => {
   const result = await apiFetch(
-    `/booking/${bookingId}`,
+    `/bookings/${bookingId}`,
     {
       method: "PATCH",
       body: JSON.stringify({
@@ -1251,7 +1262,7 @@ export const convertToInvoice = async (bookingId: number): Promise<any> => {
         },
       }),
     },
-    false,
+    true,
     true // Use customer auth
   );
 
@@ -1265,17 +1276,19 @@ export const convertToInvoice = async (bookingId: number): Promise<any> => {
 export const getBooking = async (
   bookingId: number
 ): Promise<Booking | null> => {
-  return apiFetch<Booking>(`/booking/${bookingId}`, {}, false, true);
+  return apiFetch<Booking>(`/bookings/${bookingId}`, {}, true, true);
 }
 
-export async function createBooking(): Promise<CreateBookingResponse> {
+export async function createBooking(documentType: "invoice" | "estimate" = "invoice"): Promise<CreateBookingResponse> {
+  console.log("🔍 DEBUG createBooking - sending booking_type:", documentType);
+
   const result = await apiFetch<CreateBookingResponse>(
     "/booking",
     {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({ booking_type: documentType }),
     },
-    false,
+    false, // Use BASE_URL for POST
     true
   );
 
@@ -1295,7 +1308,7 @@ export async function addBookingItem(
       method: "POST",
       body: JSON.stringify({}),
     },
-    false,
+    false, // Use BASE_URL for POST
     true
   );
 }
@@ -1330,7 +1343,7 @@ export async function updateBookingItem(
       method: "PATCH",
       body: JSON.stringify(data),
     },
-    false,
+    false, // Use BASE_URL
     true
   );
 }
@@ -1371,7 +1384,7 @@ export async function deleteLead(leadId: number): Promise<any> {
 }
 
 export async function getBookingItems(bookingId: number): Promise<any> {
-  return apiFetch(`/booking/${bookingId}/items`, {}, false, true);
+  return apiFetch(`/bookings/${bookingId}/items`, {}, true, true);
 }
 
 export async function getBookingBySlug(
